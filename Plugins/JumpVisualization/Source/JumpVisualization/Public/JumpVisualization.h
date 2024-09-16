@@ -20,6 +20,7 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 	std::vector<CapsuleLocation> JumpLocations;
+	
 private:
 	void ToggleJumpVisualization();
 	bool IsJumpVisualizationVisible() const;

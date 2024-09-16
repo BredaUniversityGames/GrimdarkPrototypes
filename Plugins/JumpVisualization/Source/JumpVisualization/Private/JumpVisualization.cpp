@@ -11,9 +11,10 @@
 #include "Debug/DebugDrawService.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "JumpVisData.h"
+#include "Net/Core/NetBitArray.h"
 
 #define LOCTEXT_NAMESPACE "FJumpVisualizationModule"
 
@@ -25,11 +26,13 @@ void FJumpVisualizationModule::StartupModule()
 	
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FJumpVisualizationModule::RegisterMenuExtensions));
 	FEditorDelegates::EndPIE.AddRaw(this, &FJumpVisualizationModule::PrintJumpLocations);
-	
+	RecordJumpsDelegate = FEditorDelegates::PostPIEStarted.AddRaw(this, &FJumpVisualizationModule::StartRecordingJumps);
 	if(GEngine)
 	{
 		DrawDebugJumpsDelegate = UDebugDrawService::Register(TEXT("Editor"), FDebugDrawDelegate::CreateRaw(this, &FJumpVisualizationModule::OnDrawJumpDebug));
 	}
+	
+	//FEngineShowFlags::RegisterCustomShowFlag()
 }
 
 void FJumpVisualizationModule::ShutdownModule()
@@ -43,11 +46,13 @@ void FJumpVisualizationModule::ToggleJumpVisualization()
 	IsJumpVisible = !IsJumpVisible;
 	if(IsJumpVisible)
 	{
-		RecordJumpsDelegate = FEditorDelegates::PostPIEStarted.AddRaw(this, &FJumpVisualizationModule::StartRecordingJumps);
+		PrintJumpLocations(false);
+		
 	}
 	else
 	{
-		FEditorDelegates::PostPIEStarted.Remove(RecordJumpsDelegate);
+		FlushPersistentDebugLines(GEditor->GetEditorWorldContext().World());
+		//FEditorDelegates::PostPIEStarted.Remove(RecordJumpsDelegate);
 	}
 	//PawnRef->
 }
@@ -86,6 +91,8 @@ void FJumpVisualizationModule::RegisterMenuExtensions()
 
 void FJumpVisualizationModule::StartRecordingJumps(bool IsSimulating)
 {
+	JumpLocations.clear();
+	FlushPersistentDebugLines(GEditor->GetEditorWorldContext().World());
 	CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::DidCharacterJustJump);
 }
 
@@ -123,10 +130,10 @@ void FJumpVisualizationModule::CollectJumpData(ACharacter* Character)
 	Location.TopMiddle.Z += HalfHeight;
 	Location.BottomMiddle.Z -= HalfHeight;
 	
-	//TActorIterator<UJumpVisData> ActorItr(Character->GetWorld());
+	//JumpLocations.push_back(Location);
 	
 	JumpLocations.push_back(Location);
-	if(!MovementRef->IsFalling())
+	if(MovementRef && !MovementRef->IsFalling())
 	{
 		GEditor->GetTimerManager()->ClearTimer(CollectJumpDataTimer);
 		CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::DidCharacterJustJump);
@@ -135,17 +142,52 @@ void FJumpVisualizationModule::CollectJumpData(ACharacter* Character)
 
 void FJumpVisualizationModule::PrintJumpLocations(bool IsSimulating)
 {
-	for(CapsuleLocation& Location : JumpLocations)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Bottom: %s,   Top: %s \n"), *Location.BottomMiddle.ToString(), *Location.TopMiddle.ToString());
-	}
 	FCoreDelegates::OnEndFrame.Remove(CheckJumpDelegate);
-	JumpLocations.clear();
+	GEditor->GetTimerManager()->ClearTimer(CollectJumpDataTimer);
+	//for(CapsuleLocation& Location : JumpLocations)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("Bottom: %s,   Top: %s \n"), *Location.BottomMiddle.ToString(), *Location.TopMiddle.ToString());
+	//}
+	//FCoreDelegates::OnEndFrame.Remove(CheckJumpDelegate);
+	//JumpLocations.clear();
+	if(!IsJumpVisible)
+		return;
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if(World && JumpLocations.size() >= 2)
+	{
+		for(int i = 0; i < JumpLocations.size() - 1; i++)
+		{
+			FVector Bottom1 = JumpLocations[i].BottomMiddle;
+			FVector Top1 = JumpLocations[i].TopMiddle;
+	
+			FVector Bottom2 = JumpLocations[i + 1].BottomMiddle;
+			FVector Top2 = JumpLocations[i + 1].TopMiddle;
+			
+			FLinearColor LineColor = FLinearColor::Red;
+			FLinearColor LineColor2 = FLinearColor::Green;
+			float LineThickness = 3.0f;
+		
+			DrawDebugLine(World, Bottom1, Bottom2, LineColor2.ToFColor(true), true, -1.0f, 0, LineThickness);
+			DrawDebugLine(World, Top1, Top2, LineColor2.ToFColor(true), true, -1.0f, 0, LineThickness);
+			DrawDebugLine(World, Bottom1, Top1, LineColor.ToFColor(true), true, -1.0f, 0, LineThickness);
+			DrawDebugLine(World, Bottom2, Top2, LineColor.ToFColor(true), true, -1.0f, 0, LineThickness);
+		}
+	}
 }
 
 void FJumpVisualizationModule::OnDrawJumpDebug(UCanvas* Canvas, APlayerController* PC)
 {
-	if(Canvas)
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if(World)
+	{
+		FVector Start = FVector(0, 0, 0);
+		FVector End = FVector(0, 0, 1000);
+			
+		FLinearColor LineColor = FLinearColor::Red;
+		float LineThickness = 5.0f;
+		DrawDebugLine(World, Start, End, LineColor.ToFColor(true), false, -1.0f, 0, LineThickness);
+	}
+	/*if(Canvas)
 	{
 		UWorld* World = PC ? PC->GetWorld() : nullptr;
 		if (World)
@@ -158,7 +200,7 @@ void FJumpVisualizationModule::OnDrawJumpDebug(UCanvas* Canvas, APlayerControlle
 
 			DrawDebugLine(World, Start, End, LineColor.ToFColor(true), false, -1.0f, 0, LineThickness);
 		}
-	}
+	}*/
 }
 
 #undef LOCTEXT_NAMESPACE

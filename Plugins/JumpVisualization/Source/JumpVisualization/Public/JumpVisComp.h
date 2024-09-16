@@ -4,12 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "ComponentVisualizer.h"
+#include "Debug/DebugDrawComponent.h"
 
-class JUMPVISUALIZATION_API UJumpVisComp : public FComponentVisualizer
+#include "JumpVisComp.generated.h"
+
+UCLASS()
+class JUMPVISUALIZATION_API UJumpVisComp : public UDebugDrawComponent
 {
-public:	
+	GENERATED_BODY()
+public:
+	TArray<FVector> Locations;
 	// Sets default values for this component's properties
 	UJumpVisComp();
-	void DrawVisualization(const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
-		
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& Transform) const override;
+	virtual bool ShouldRecreateProxyOnUpdateTransform() const override {return true;};
 };

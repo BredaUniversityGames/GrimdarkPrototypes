@@ -7,7 +7,14 @@
 #include <vector>
 #include "JumpVisData.generated.h"
 
+class FJumpVisualizationModule;
 class UJumpVisComp;
+	
+struct CapsuleLocation
+{
+	FVector TopMiddle{0.f};
+	FVector BottomMiddle{0.f};
+};
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class JUMPVISUALIZATION_API UJumpVisData : public UActorComponent
@@ -21,13 +28,8 @@ public:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+	friend FJumpVisualizationModule;
 	friend UJumpVisComp;
-
-	struct CapsuleLocation
-	{
-		FVector TopMiddle{0.f};
-		FVector BottomMiddle{0.f};
-	};
 
 	std::vector<CapsuleLocation> JumpLocations;
 public:	
