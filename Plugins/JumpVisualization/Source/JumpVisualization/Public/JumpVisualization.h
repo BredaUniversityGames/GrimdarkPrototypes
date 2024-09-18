@@ -31,6 +31,7 @@ private:
 	void CollectJumpData(ACharacter* Character);
 	void PrintJumpLocations(bool IsSimulating);
 	void OnEndPIE(bool IsSimulating);
+	static FString GetOldestFile();
 	//void CheckFilesNumber();
 public:
 	

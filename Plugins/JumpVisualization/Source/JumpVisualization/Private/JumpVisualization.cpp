@@ -162,12 +162,49 @@ void FJumpVisualizationModule::OnEndPIE(bool IsSimulating)
 {
 	FBufferArchive Archive;
 	Archive << JumpLocations;
-	FString FullPath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), TEXT("Test1.dat"));
+	FDateTime CurrentTime = FDateTime::Now();
+	FString NewFileName = TEXT("JumpDataFile");
+	NewFileName.Append(CurrentTime.ToString());
+	NewFileName.Append(TEXT(".dat"));
+	FString FullPath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), NewFileName);
+	TArray<FString> FileNames;
+	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
+	while(FileNames.Num() > 99)
+	{
+		FString OldestFile = GetOldestFile();
+		IFileManager::Get().Delete(*FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), OldestFile), false, true);
+	}
+	
 	if(FFileHelper::SaveArrayToFile(Archive, *FullPath))
 	{
 		Archive.FlushCache();
 		Archive.Empty();
 	}
+}
+
+FString FJumpVisualizationModule::GetOldestFile()
+{
+	TArray<FString> FileNames;
+	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
+	FString OldestFile = TEXT("");
+	FDateTime OldestFileTimestamp = FDateTime::MaxValue();
+	for(int i = 0; i < FileNames.Num(); i++)
+	{
+		//18
+		FString FileName = FileNames[i];
+		FileName.RemoveFromEnd(".dat");
+		FString TimeStampString = FileName.RightChop(18);
+
+		FDateTime Timestamp;
+		FDateTime::Parse(TimeStampString, Timestamp);
+
+		if(Timestamp < OldestFileTimestamp)
+		{
+			OldestFileTimestamp = Timestamp;
+			OldestFile = FileNames[i];
+		}
+	}
+	return OldestFile;
 }
 
 #undef LOCTEXT_NAMESPACE
