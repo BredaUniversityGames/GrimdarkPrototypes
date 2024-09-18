@@ -20,6 +20,10 @@ public:
 	TArray<TArray<FCapsuleLocation>> GetCapsuleLocations() const { return JumpLocations; }
 	static FString GetOldestFile(bool& bFoundFile);
 	static FString GetNewestFile(bool& bFoundFile);
+	static FString GetNFile(bool& bFoundFile, const int N);
+	static int GetAmountOfFiles();
+	int GetSessionNumberToShow() const { return SessionNumberToShow; }
+	void SetSessionNumberToShow(int NewSessionNumberToShow) { SessionNumberToShow = NewSessionNumberToShow; UE_LOG(LogTemp, Warning, TEXT("New Session: %i"), SessionNumberToShow)}
 	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
 	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
 private:                             
@@ -47,6 +51,6 @@ private:
 	TSharedPtr<FUICommandList> CommandList;
 	AJumpVisActor* JumpVisActor = nullptr;
 	TMap<int, TArray<FCapsuleLocation>> Test;
-	uint8 CurrentIndex = 0;
+	uint8 SessionNumberToShow = 1;
 	TArray<TArray<FCapsuleLocation>> JumpLocations;
 };

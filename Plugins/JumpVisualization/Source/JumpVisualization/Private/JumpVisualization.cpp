@@ -275,6 +275,48 @@ FString FJumpVisualizationModule::GetNewestFile(bool& bFoundFile)
 	return NewestFile;
 }
 
+FString FJumpVisualizationModule::GetNFile(bool& bFoundFile, int N)
+{
+	TArray<FString> FileNames;
+	TMap<FDateTime, FString> FileMap;
+	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
+	FString NewestFile = TEXT("");
+	for(int i = 0; i < FileNames.Num(); i++)
+	{
+		//18
+		FString FileName = FileNames[i];
+		FileName.RemoveFromEnd(".dat");
+		FileName.RightInline(19);
+		
+		FDateTime Timestamp;
+		FDateTime::Parse(FileName, Timestamp);
+
+		FileMap.Add(Timestamp, FileNames[i]);
+	}
+	
+	TArray<FDateTime> Keys;
+	FileMap.GenerateKeyArray(Keys);
+	N = Keys.Num() - N;
+	for(int i = Keys.Num() - 1; i >= 0; i--)
+	{
+		if(i == N)
+		{
+			bFoundFile = true;
+        	return FileMap[Keys[i]];
+		}
+	}
+	
+	bFoundFile = false;
+	return "";
+}
+
+int FJumpVisualizationModule::GetAmountOfFiles()
+{	
+	TArray<FString> FileNames;
+ 	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
+	return FileNames.Num();
+}
+
 #undef LOCTEXT_NAMESPACE
 	
 IMPLEMENT_MODULE(FJumpVisualizationModule, JumpVisualization)

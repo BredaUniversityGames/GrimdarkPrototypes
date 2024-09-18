@@ -1,2 +1,12 @@
-﻿#include "D:\UE Projects\GrimdarkPrototypes\Intermediate\Build\Win64\x64\GrimdarkPrototypesEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.NoValFmtStr.ValApi.Cpp20.InclOrderUnreal5_3.h"
-#include "JumpVisualizationBPLibrary.h"
+﻿#include "JumpVisualizationBPLibrary.h"
+
+#include "JumpVisualization.h"
+#include "JumpVisActor.h"
+
+void UJumpVisualizationBPLibrary::SetJumpDataSessionNumber(const int SessionNumber)
+{
+	FJumpVisualizationModule& JumpVisualizationModule = FModuleManager::GetModuleChecked<FJumpVisualizationModule>("JumpVisualization");
+	if(JumpVisualizationModule.GetAmountOfFiles() < SessionNumber)
+		return;
+	JumpVisualizationModule.SetSessionNumberToShow(SessionNumber);
+}
