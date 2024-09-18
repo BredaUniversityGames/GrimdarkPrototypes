@@ -6,11 +6,8 @@
 #include "Modules/ModuleManager.h"
 #include <vector>
 
-struct CapsuleLocation
-{
-	FVector TopMiddle{0.f};
-	FVector BottomMiddle{0.f};
-};
+class AJumpVisActor;
+struct FCapsuleLocation;
 
 class FJumpVisualizationModule : public IModuleInterface
 {
@@ -19,9 +16,12 @@ public:
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-	std::vector<CapsuleLocation> JumpLocations;
+
+	TArray<TArray<FCapsuleLocation>> GetCapsuleLocations() const { return JumpLocations; }
 	
-private:
+	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
+	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
+private:                             
 	void ToggleJumpVisualization();
 	bool IsJumpVisualizationVisible() const;
 	void BindCommands();
@@ -30,14 +30,20 @@ private:
 	void DidCharacterJustJump();
 	void CollectJumpData(ACharacter* Character);
 	void PrintJumpLocations(bool IsSimulating);
-	void OnDrawJumpDebug(UCanvas* Canvas, APlayerController* PC);
+	void OnEndPIE(bool IsSimulating);
+	//void CheckFilesNumber();
 public:
 	
 private:
+	
 	FTimerHandle CollectJumpDataTimer;
 	FDelegateHandle RecordJumpsDelegate;
 	FDelegateHandle CheckJumpDelegate;
 	FDelegateHandle DrawDebugJumpsDelegate;
 	bool IsJumpVisible = false;
 	TSharedPtr<FUICommandList> CommandList;
+	AJumpVisActor* JumpVisActor = nullptr;
+	TMap<int, TArray<FCapsuleLocation>> Test;
+	uint8 CurrentIndex = 0;
+	TArray<TArray<FCapsuleLocation>> JumpLocations;
 };

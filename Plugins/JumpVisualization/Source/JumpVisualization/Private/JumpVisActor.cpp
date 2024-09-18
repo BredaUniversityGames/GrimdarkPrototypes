@@ -4,7 +4,6 @@
 #include "JumpVisActor.h"
 
 #include "JumpVisComp.h"
-#include "JumpVisData.h"
 #include "LevelEditorViewport.h"
 
 // Sets default values

@@ -13,7 +13,6 @@ class JUMPVISUALIZATION_API UJumpVisComp : public UDebugDrawComponent
 {
 	GENERATED_BODY()
 public:
-	TArray<FVector> Locations;
 	// Sets default values for this component's properties
 	UJumpVisComp();
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;

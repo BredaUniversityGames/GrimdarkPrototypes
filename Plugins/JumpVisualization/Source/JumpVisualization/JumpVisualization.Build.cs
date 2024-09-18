@@ -41,7 +41,9 @@ public class JumpVisualization : ModuleRules
 				"ToolMenus",
 				"EditorFramework",
 				"UnrealEd",
-				"LevelEditor"
+				"LevelEditor",
+				"Json",
+				"JsonUtilities",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

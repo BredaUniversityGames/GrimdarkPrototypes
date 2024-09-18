@@ -2,7 +2,7 @@
 
 #include "FJumpDebugSceneProxy.h"
 #include "JumpVisActor.h"
-#include "JumpVisData.h"
+#include "JumpVisualization.h"
 
 namespace JumpVis {
 	namespace Editor {
@@ -27,17 +27,55 @@ UJumpVisComp::UJumpVisComp()
 #if WITH_EDITORONLY_DATA
 	SetIsVisualizationComponent(true);
 #endif;
-	Locations.Emplace(FVector(0.f));
-	Locations.Emplace(FVector(0.f, 0.f, 1000.f));
 }
 
 FDebugRenderSceneProxy* UJumpVisComp::CreateDebugSceneProxy()
 {
 	FJumpDebugSceneProxy* DSceneProxy = new FJumpDebugSceneProxy(this);
-	if(const AJumpVisActor* Actor = Cast<AJumpVisActor>(GetOwner()))
+	const AJumpVisActor* Owner = Cast<AJumpVisActor>(GetOwner());
+	if(!Owner)
+		return DSceneProxy;
+	
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if(!World)
+		World = GEditor->PlayWorld;
+	if(World)
 	{
-		DSceneProxy->Lines.Emplace(Locations[0], Locations[1], FColor::Red, 5.f);
+		TArray<TArray<FCapsuleLocation>> JumpLocations;
+		TArray<uint8> BinaryData;
+		if(FFileHelper::LoadFileToArray(BinaryData, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), TEXT("Test1.dat"))))
+		{
+			FMemoryReader Archive(BinaryData, true);
+			Archive.Seek(0);
+
+			Archive << JumpLocations;
+		}
+		
+		
+		for(int j = 0; j < JumpLocations.Num(); j++)
+		{
+			if(JumpLocations[j].Num() < 2)
+				continue;
+			for(int i = 0; i < JumpLocations[j].Num() - 1; i++)
+			{
+				FVector Bottom1 = JumpLocations[j][i].BottomMiddle;
+				FVector Top1 = JumpLocations[j][i].TopMiddle;
+	
+				FVector Bottom2 = JumpLocations[j][i + 1].BottomMiddle;
+				FVector Top2 = JumpLocations[j][i + 1].TopMiddle;
+			
+				FLinearColor LineColor = FLinearColor::Red;
+				FLinearColor LineColor2 = FLinearColor::Green;
+				float LineThickness = 3.0f;
+		
+				DSceneProxy->Lines.Emplace(Bottom1, Bottom2, LineColor2.ToFColor(true), LineThickness);
+				DSceneProxy->Lines.Emplace(Top1, Top2, LineColor2.ToFColor(true), LineThickness);
+				DSceneProxy->Lines.Emplace(Bottom1, Top1, LineColor.ToFColor(true), LineThickness);
+				DSceneProxy->Lines.Emplace(Bottom2, Top2, LineColor.ToFColor(true), LineThickness);
+			}
+		}
 	}
+
 	return DSceneProxy;
 }
 
