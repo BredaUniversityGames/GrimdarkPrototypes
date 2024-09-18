@@ -43,13 +43,17 @@ FDebugRenderSceneProxy* UJumpVisComp::CreateDebugSceneProxy()
 	{
 		TArray<TArray<FCapsuleLocation>> JumpLocations;
 		TArray<uint8> BinaryData;
-		if(FFileHelper::LoadFileToArray(BinaryData, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), TEXT("Test1.dat"))))
+		bool bFoundFile = false;
+		FString FilePath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), FJumpVisualizationModule::GetNewestFile(bFoundFile));
+		if(FFileHelper::LoadFileToArray(BinaryData, *FilePath) && bFoundFile)
 		{
 			FMemoryReader Archive(BinaryData, true);
 			Archive.Seek(0);
 
 			Archive << JumpLocations;
 		}
+		else
+			return DSceneProxy;
 		
 		
 		for(int j = 0; j < JumpLocations.Num(); j++)

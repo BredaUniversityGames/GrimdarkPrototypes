@@ -18,7 +18,8 @@ public:
 	virtual void ShutdownModule() override;
 
 	TArray<TArray<FCapsuleLocation>> GetCapsuleLocations() const { return JumpLocations; }
-	
+	static FString GetOldestFile(bool& bFoundFile);
+	static FString GetNewestFile(bool& bFoundFile);
 	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
 	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
 private:                             
@@ -31,7 +32,6 @@ private:
 	void CollectJumpData(ACharacter* Character);
 	void PrintJumpLocations(bool IsSimulating);
 	void OnEndPIE(bool IsSimulating);
-	static FString GetOldestFile();
 	//void CheckFilesNumber();
 public:
 	
@@ -42,6 +42,8 @@ private:
 	FDelegateHandle CheckJumpDelegate;
 	FDelegateHandle DrawDebugJumpsDelegate;
 	bool IsJumpVisible = false;
+	uint32 ViewFlagIndex = -1;
+	FString ViewFlagName = "";
 	TSharedPtr<FUICommandList> CommandList;
 	AJumpVisActor* JumpVisActor = nullptr;
 	TMap<int, TArray<FCapsuleLocation>> Test;

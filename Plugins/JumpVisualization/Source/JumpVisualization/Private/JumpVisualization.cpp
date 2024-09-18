@@ -16,7 +16,10 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Serialization/BufferArchive.h"
 #include "JumpVisActor.h"
+#include "LevelEditor.h"
+#include "SLevelViewport.h"
 #include "Containers/DirectoryTree.h"
+#include "Framework/MultiBox/SToolBarComboButtonBlock.h"
 
 #define LOCTEXT_NAMESPACE "FJumpVisualizationModule"
 
@@ -32,6 +35,9 @@ void FJumpVisualizationModule::StartupModule()
 	RecordJumpsDelegate = FEditorDelegates::ShutdownPIE.AddRaw(this, &FJumpVisualizationModule::OnEndPIE);
 	
 	//FEngineShowFlags::RegisterCustomShowFlag()
+
+	ViewFlagName = TEXT("JumpVisualization");
+	ViewFlagIndex = static_cast<uint32>(FEngineShowFlags::FindIndexByName(*ViewFlagName));
 }
 
 void FJumpVisualizationModule::ShutdownModule()
@@ -46,11 +52,38 @@ void FJumpVisualizationModule::ToggleJumpVisualization()
 	if(IsJumpVisible)
 	{
 		PrintJumpLocations(false);
-		
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+		if (LevelEditor.IsValid())
+		{
+			TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+			for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+			{
+				if (ViewportWindow.IsValid())
+				{
+					FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+					Viewport.EngineShowFlags.SetSingleFlag(ViewFlagIndex, true);
+				}
+			}
+		}
+		//FEngineShowFlags::Get().SetSingleFlag(ViewFlagIndex, true);
 	}
 	else
 	{
-		FlushPersistentDebugLines(GEditor->GetEditorWorldContext().World());
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+		if (LevelEditor.IsValid())
+		{
+			TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+			for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+			{
+				if (ViewportWindow.IsValid())
+				{
+					FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+					Viewport.EngineShowFlags.SetSingleFlag(ViewFlagIndex, false);
+				}
+			}
+		}
 		//FEditorDelegates::PostPIEStarted.Remove(RecordJumpsDelegate);
 	}
 	//PawnRef->
@@ -83,6 +116,11 @@ void FJumpVisualizationModule::RegisterMenuExtensions()
 		  FCanExecuteAction(),
 		  FIsActionChecked::CreateRaw(this, &FJumpVisualizationModule::IsJumpVisualizationVisible));
 	ShowMenuSection.AddMenuEntry(FName("JumpVisualizer"), FText::FromString("Jump Visualizer"), FText::FromString("Visualize Jumps From Previous Play"), FSlateIcon(), Action, EUserInterfaceActionType::ToggleButton);
+	TSharedPtr<SComboButton> ComboButton = SNew(SComboButton).AccessibleText(LOCTEXT("Combo", ""));
+	
+	//ShowMenuSection.AddEntry(FToolMenuEntry::InitWidget("ComboButton", ComboButton.ToSharedRef(), FText::GetEmpty()));
+	//ShowMenuSection.AddSubMenu()
+	//ShowMenuSection.AddMenuEntry(FName("JumpVisualizer"), FText::FromString("Jump Visualizer"), FText::FromString("Visualize Jumps From Previous Play"), FSlateIcon(), Action, EUserInterfaceActionType::);
 }
 
 void FJumpVisualizationModule::StartRecordingJumps(bool IsSimulating)
@@ -98,7 +136,7 @@ void FJumpVisualizationModule::StartRecordingJumps(bool IsSimulating)
 		UE_LOG(LogTemp, Error, TEXT("Could not find jump visualization actor in world. Make sure there is one!"));
 		return;
 	}
-	JumpVisActor->JumpLocations.Empty();
+
 	CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::DidCharacterJustJump);
 }
 
@@ -154,8 +192,6 @@ void FJumpVisualizationModule::PrintJumpLocations(bool IsSimulating)
 	{
 		return;
 	}
-	
-	JumpVisActor->JumpLocations = JumpLocations;
 }
 
 void FJumpVisualizationModule::OnEndPIE(bool IsSimulating)
@@ -171,7 +207,12 @@ void FJumpVisualizationModule::OnEndPIE(bool IsSimulating)
 	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
 	while(FileNames.Num() > 99)
 	{
-		FString OldestFile = GetOldestFile();
+		bool bFoundFile = false;
+		FString OldestFile = GetOldestFile(bFoundFile);
+		if(!bFoundFile)
+		{
+			break;
+		}
 		IFileManager::Get().Delete(*FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), OldestFile), false, true);
 	}
 	
@@ -182,7 +223,7 @@ void FJumpVisualizationModule::OnEndPIE(bool IsSimulating)
 	}
 }
 
-FString FJumpVisualizationModule::GetOldestFile()
+FString FJumpVisualizationModule::GetOldestFile(bool& bFoundFile)
 {
 	TArray<FString> FileNames;
 	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
@@ -202,9 +243,36 @@ FString FJumpVisualizationModule::GetOldestFile()
 		{
 			OldestFileTimestamp = Timestamp;
 			OldestFile = FileNames[i];
+			bFoundFile = true;
 		}
 	}
 	return OldestFile;
+}
+
+FString FJumpVisualizationModule::GetNewestFile(bool& bFoundFile)
+{
+	TArray<FString> FileNames;
+	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
+	FString NewestFile = TEXT("");
+	FDateTime NewestFileTimestamp = FDateTime::MinValue();
+	for(int i = 0; i < FileNames.Num(); i++)
+	{
+		//18
+		FString FileName = FileNames[i];
+		FileName.RemoveFromEnd(".dat");
+		FileName.RightInline(19);
+		
+		FDateTime Timestamp;
+		FDateTime::Parse(FileName, Timestamp);
+
+		if(Timestamp > NewestFileTimestamp)
+		{
+			NewestFileTimestamp = Timestamp;
+			NewestFile = FileNames[i];
+			bFoundFile = true;
+		}
+	}
+	return NewestFile;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -11,7 +11,7 @@ AJumpVisActor::AJumpVisActor()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.TickInterval = 1.f;
+	PrimaryActorTick.TickInterval = 0.1f;
 	JumpData = CreateDefaultSubobject<UJumpVisComp>(TEXT("JumpVisComponent"));
 }
 

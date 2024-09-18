@@ -46,7 +46,6 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	UJumpVisComp* JumpData;
-	TArray<TArray<FCapsuleLocation>> JumpLocations;
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
