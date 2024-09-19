@@ -21,6 +21,13 @@ struct FResourceData
 		Location = FVector::ZeroVector;
 		Time = FDateTime::MinValue();
 	}
+
+	FResourceData(int NAmount, FVector NLocation, FDateTime NTime)
+	{
+		Amount = NAmount;
+		Location = NLocation;
+		Time = NTime;
+	}
 };
 
 class FJumpVisualizationModule : public IModuleInterface
@@ -38,7 +45,9 @@ public:
 	static int GetAmountOfFiles();
 	int GetSessionNumberToShow() const { return SessionNumberToShow; }
 	void SetSessionNumberToShow(int NewSessionNumberToShow) { SessionNumberToShow = NewSessionNumberToShow; UE_LOG(LogTemp, Warning, TEXT("New Session: %i"), SessionNumberToShow)}
+	TMap<int*, TArray<FResourceData>> GetResourceData() const { return ResourceData; }
 	void AddResourceToTrack(int* Variable) { ResourceData.Add(Variable, TArray<FResourceData>()); }
+
 	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
 	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
 private:                             
@@ -46,9 +55,10 @@ private:
 	bool IsJumpVisualizationVisible() const;
 	void BindCommands();
 	void RegisterMenuExtensions();
-	void StartRecordingJumps(bool IsSimulating);
-	void DidCharacterJustJump();
+	void StartRecordingData(bool IsSimulating);
+	void CheckPlayerData();
 	void CollectJumpData(ACharacter* Character);
+	void CollectResourceData();
 	void PrintJumpLocations(bool IsSimulating);
 	void OnEndPIE(bool IsSimulating);
 	//void CheckFilesNumber();
@@ -57,15 +67,16 @@ public:
 private:
 	
 	FTimerHandle CollectJumpDataTimer;
+	FTimerHandle CollectResourceDataTimer;
 	FDelegateHandle RecordJumpsDelegate;
 	FDelegateHandle CheckJumpDelegate;
 	FDelegateHandle DrawDebugJumpsDelegate;
+	FDelegateHandle CheckResourceDelegate;
 	bool IsJumpVisible = false;
 	uint32 ViewFlagIndex = -1;
 	FString ViewFlagName = "";
 	TSharedPtr<FUICommandList> CommandList;
 	AJumpVisActor* JumpVisActor = nullptr;
-	TMap<int, TArray<FCapsuleLocation>> Test;
 	uint8 SessionNumberToShow = 1;
 	TArray<TArray<FCapsuleLocation>> JumpLocations;
 	TMap<int*, TArray<FResourceData>> ResourceData;

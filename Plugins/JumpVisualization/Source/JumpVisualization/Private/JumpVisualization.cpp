@@ -31,7 +31,7 @@ void FJumpVisualizationModule::StartupModule()
 	
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FJumpVisualizationModule::RegisterMenuExtensions));
 	FEditorDelegates::EndPIE.AddRaw(this, &FJumpVisualizationModule::PrintJumpLocations);
-	RecordJumpsDelegate = FEditorDelegates::PostPIEStarted.AddRaw(this, &FJumpVisualizationModule::StartRecordingJumps);
+	RecordJumpsDelegate = FEditorDelegates::PostPIEStarted.AddRaw(this, &FJumpVisualizationModule::StartRecordingData);
 	RecordJumpsDelegate = FEditorDelegates::ShutdownPIE.AddRaw(this, &FJumpVisualizationModule::OnEndPIE);
 	
 	//FEngineShowFlags::RegisterCustomShowFlag()
@@ -66,7 +66,6 @@ void FJumpVisualizationModule::ToggleJumpVisualization()
 				}
 			}
 		}
-		//FEngineShowFlags::Get().SetSingleFlag(ViewFlagIndex, true);
 	}
 	else
 	{
@@ -123,9 +122,11 @@ void FJumpVisualizationModule::RegisterMenuExtensions()
 	//ShowMenuSection.AddMenuEntry(FName("JumpVisualizer"), FText::FromString("Jump Visualizer"), FText::FromString("Visualize Jumps From Previous Play"), FSlateIcon(), Action, EUserInterfaceActionType::);
 }
 
-void FJumpVisualizationModule::StartRecordingJumps(bool IsSimulating)
+void FJumpVisualizationModule::StartRecordingData(bool IsSimulating)
 {
 	JumpLocations.Empty();
+	for(auto& Pair : ResourceData)
+		Pair.Value.Empty();
 	for(TActorIterator<AJumpVisActor> ActorIt(GEditor->PlayWorld); ActorIt; ++ActorIt)
 	{
 		JumpVisActor = *ActorIt;
@@ -137,10 +138,14 @@ void FJumpVisualizationModule::StartRecordingJumps(bool IsSimulating)
 		return;
 	}
 
-	CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::DidCharacterJustJump);
+	CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CheckPlayerData);
+	//CheckResourceDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CollectResourceData);
+	FTimerDelegate TimerDelegate = FTimerDelegate::CreateRaw(this, &FJumpVisualizationModule::CollectResourceData);
+	GEditor->GetTimerManager()->SetTimer(CollectResourceDataTimer, TimerDelegate, 0.5f, true, 0.f);
+
 }
 
-void FJumpVisualizationModule::DidCharacterJustJump()
+void FJumpVisualizationModule::CheckPlayerData()
 {
 	APlayerController* PlayerControllerRef = UGameplayStatics::GetPlayerController(GEditor->PlayWorld, 0);
 	if(!PlayerControllerRef)
@@ -180,7 +185,31 @@ void FJumpVisualizationModule::CollectJumpData(ACharacter* Character)
 	if(MovementRef && !MovementRef->IsFalling())
 	{
 		GEditor->GetTimerManager()->ClearTimer(CollectJumpDataTimer);
-		CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::DidCharacterJustJump);
+		CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CheckPlayerData);
+	}
+}
+
+void FJumpVisualizationModule::CollectResourceData()
+{
+	APlayerController* PlayerControllerRef = UGameplayStatics::GetPlayerController(GEditor->PlayWorld, 0);
+	if(!PlayerControllerRef)
+		return;
+	APawn* PawnRef = PlayerControllerRef->GetPawn();
+	ACharacter* CharacterRef = Cast<ACharacter>(PawnRef);
+	if(!CharacterRef)
+		return;
+	UCharacterMovementComponent* MovementRef = CharacterRef->GetCharacterMovement();
+	UCapsuleComponent* CapsuleRef = CharacterRef->GetCapsuleComponent();
+	if(!MovementRef || !CapsuleRef)
+		return;
+	float Radius = 0.f;
+	float HalfHeight = 0.f;
+	CapsuleRef->GetScaledCapsuleSize(Radius, HalfHeight);
+	FVector Location =  CapsuleRef->GetComponentLocation();
+	FDateTime Time = FDateTime::Now();
+	for(auto& Resource : ResourceData)
+	{
+		Resource.Value.Emplace(FResourceData(*Resource.Key, Location, Time));
 	}
 }
 

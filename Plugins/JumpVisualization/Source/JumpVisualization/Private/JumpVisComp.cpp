@@ -45,7 +45,7 @@ FDebugRenderSceneProxy* UJumpVisComp::CreateDebugSceneProxy()
 		TArray<uint8> BinaryData;
 		bool bFoundFile = false;
 		FJumpVisualizationModule& JumpVisualizationModule = FModuleManager::GetModuleChecked<FJumpVisualizationModule>("JumpVisualization");
-
+	
 		FString FilePath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), FJumpVisualizationModule::GetNFile(bFoundFile, JumpVisualizationModule.GetSessionNumberToShow()));
 		if(FFileHelper::LoadFileToArray(BinaryData, *FilePath) && bFoundFile)
 		{
@@ -53,31 +53,37 @@ FDebugRenderSceneProxy* UJumpVisComp::CreateDebugSceneProxy()
 			Archive.Seek(0);
 
 			Archive << JumpLocations;
-		}
-		else
-			return DSceneProxy;
-		
-		
-		for(int j = 0; j < JumpLocations.Num(); j++)
-		{
-			if(JumpLocations[j].Num() < 2)
-				continue;
-			for(int i = 0; i < JumpLocations[j].Num() - 1; i++)
-			{
-				FVector Bottom1 = JumpLocations[j][i].BottomMiddle;
-				FVector Top1 = JumpLocations[j][i].TopMiddle;
-	
-				FVector Bottom2 = JumpLocations[j][i + 1].BottomMiddle;
-				FVector Top2 = JumpLocations[j][i + 1].TopMiddle;
 			
-				FLinearColor LineColor = FLinearColor::Red;
-				FLinearColor LineColor2 = FLinearColor::Green;
-				float LineThickness = 3.0f;
+			for(int j = 0; j < JumpLocations.Num(); j++)
+			{
+				if(JumpLocations[j].Num() < 2)
+					continue;
+				for(int i = 0; i < JumpLocations[j].Num() - 1; i++)
+				{
+					FVector Bottom1 = JumpLocations[j][i].BottomMiddle;
+					FVector Top1 = JumpLocations[j][i].TopMiddle;
 		
-				DSceneProxy->Lines.Emplace(Bottom1, Bottom2, LineColor2.ToFColor(true), LineThickness);
-				DSceneProxy->Lines.Emplace(Top1, Top2, LineColor2.ToFColor(true), LineThickness);
-				DSceneProxy->Lines.Emplace(Bottom1, Top1, LineColor.ToFColor(true), LineThickness);
-				DSceneProxy->Lines.Emplace(Bottom2, Top2, LineColor.ToFColor(true), LineThickness);
+					FVector Bottom2 = JumpLocations[j][i + 1].BottomMiddle;
+					FVector Top2 = JumpLocations[j][i + 1].TopMiddle;
+				
+					FLinearColor LineColor = FLinearColor::Red;
+					FLinearColor LineColor2 = FLinearColor::Green;
+					float LineThickness = 3.0f;
+			
+					DSceneProxy->Lines.Emplace(Bottom1, Bottom2, LineColor2.ToFColor(true), LineThickness);
+					DSceneProxy->Lines.Emplace(Top1, Top2, LineColor2.ToFColor(true), LineThickness);
+					DSceneProxy->Lines.Emplace(Bottom1, Top1, LineColor.ToFColor(true), LineThickness);
+					DSceneProxy->Lines.Emplace(Bottom2, Top2, LineColor.ToFColor(true), LineThickness);
+				}
+			}
+		}
+
+		TMap<int*, TArray<FResourceData>> ResourceData = JumpVisualizationModule.GetResourceData();
+		for(const auto Resource : ResourceData)
+		{
+			for(int i = 0; i < Resource.Value.Num(); i++)
+			{
+				DSceneProxy->Texts.Emplace(FString::FromInt(Resource.Value[i].Amount), Resource.Value[i].Location, FLinearColor::Red);
 			}
 		}
 	}
