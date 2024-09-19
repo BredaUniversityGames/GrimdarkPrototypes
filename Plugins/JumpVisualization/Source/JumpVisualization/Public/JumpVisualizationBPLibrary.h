@@ -15,5 +15,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "JumpVisualization")
 	static void SetJumpDataSessionNumber(const int SessionNumber);
-	
+
+	UFUNCTION(BlueprintCallable, Category = "JumpVisualization")
+	static void AddVariableToTrack(UPARAM(ref) int& Variable);
 };

@@ -9,6 +9,20 @@
 class AJumpVisActor;
 struct FCapsuleLocation;
 
+struct FResourceData
+{
+	int Amount;
+	FVector Location;
+	FDateTime Time;
+	
+	FResourceData()
+	{
+		Amount = 0;
+		Location = FVector::ZeroVector;
+		Time = FDateTime::MinValue();
+	}
+};
+
 class FJumpVisualizationModule : public IModuleInterface
 {
 public:
@@ -24,6 +38,7 @@ public:
 	static int GetAmountOfFiles();
 	int GetSessionNumberToShow() const { return SessionNumberToShow; }
 	void SetSessionNumberToShow(int NewSessionNumberToShow) { SessionNumberToShow = NewSessionNumberToShow; UE_LOG(LogTemp, Warning, TEXT("New Session: %i"), SessionNumberToShow)}
+	void AddResourceToTrack(int* Variable) { ResourceData.Add(Variable, TArray<FResourceData>()); }
 	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
 	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
 private:                             
@@ -53,4 +68,5 @@ private:
 	TMap<int, TArray<FCapsuleLocation>> Test;
 	uint8 SessionNumberToShow = 1;
 	TArray<TArray<FCapsuleLocation>> JumpLocations;
+	TMap<int*, TArray<FResourceData>> ResourceData;
 };

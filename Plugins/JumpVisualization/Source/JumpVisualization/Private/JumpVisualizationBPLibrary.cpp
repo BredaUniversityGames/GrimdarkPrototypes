@@ -10,3 +10,10 @@ void UJumpVisualizationBPLibrary::SetJumpDataSessionNumber(const int SessionNumb
 		return;
 	JumpVisualizationModule.SetSessionNumberToShow(SessionNumber);
 }
+
+void UJumpVisualizationBPLibrary::AddVariableToTrack(int& Variable)
+{
+	FJumpVisualizationModule& JumpVisualizationModule = FModuleManager::GetModuleChecked<FJumpVisualizationModule>("JumpVisualization");
+	JumpVisualizationModule.AddResourceToTrack(&Variable);
+}
+
