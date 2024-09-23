@@ -83,7 +83,7 @@ FDebugRenderSceneProxy* UJumpVisComp::CreateDebugSceneProxy()
 		{
 			for(int i = 0; i < Resource.Value.Num(); i++)
 			{
-				DSceneProxy->Texts.Emplace(FString::FromInt(Resource.Value[i].Amount), Resource.Value[i].Location, FLinearColor::Red);
+				//DSceneProxy->Texts.Emplace(FString::FromInt(Resource.Value[i].Amount), Resource.Value[i].Location, FLinearColor::Red);
 			}
 		}
 	}

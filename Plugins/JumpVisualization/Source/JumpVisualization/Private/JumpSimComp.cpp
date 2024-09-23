@@ -36,7 +36,8 @@ FDebugRenderSceneProxy* UJumpSimComp::CreateDebugSceneProxy()
 		FPredictProjectilePathParams PredictParams;
 		FPredictProjectilePathResult PredictResult;
 
-		PredictParams.LaunchVelocity = Owner->GetActorForwardVector() * Owner->MaxSpeed;
+		PredictParams.OverrideGravityZ = Owner->GravityOverride;
+		PredictParams.LaunchVelocity = Owner->GetActorForwardVector() * Owner->Speed;
 		PredictParams.LaunchVelocity.Z += Owner->JumpZVelocity;
 		PredictParams.StartLocation = Owner->GetActorLocation();
 		PredictParams.MaxSimTime = Owner->SimTime;
@@ -48,7 +49,7 @@ FDebugRenderSceneProxy* UJumpSimComp::CreateDebugSceneProxy()
 		auto PreviousPoint = PredictResult.PathData[0];
 		for(int i = 1; i < PredictResult.PathData.Num(); i++)
 		{
-			DSceneProxy->Lines.Emplace(PreviousPoint.Location, PredictResult.PathData[i].Location, FLinearColor::Green.ToFColor(true), 3.f);
+			DSceneProxy->Lines.Emplace(PreviousPoint.Location, PredictResult.PathData[i].Location, FLinearColor::Yellow.ToFColor(true), 2.f);
 			PreviousPoint = PredictResult.PathData[i];
 		}
 	}
