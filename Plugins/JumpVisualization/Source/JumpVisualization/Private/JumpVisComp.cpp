@@ -3,6 +3,8 @@
 #include "FJumpDebugSceneProxy.h"
 #include "JumpVisActor.h"
 #include "JumpVisualization.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/GameplayStaticsTypes.h"
 
 namespace JumpVis {
 	namespace Editor {
@@ -53,27 +55,81 @@ FDebugRenderSceneProxy* UJumpVisComp::CreateDebugSceneProxy()
 			Archive.Seek(0);
 
 			Archive << JumpLocations;
-			
-			for(int j = 0; j < JumpLocations.Num(); j++)
+
+			if(!Owner->UseSetValues)
 			{
-				if(JumpLocations[j].Num() < 2)
-					continue;
-				for(int i = 0; i < JumpLocations[j].Num() - 1; i++)
+				for(int j = 0; j < JumpLocations.Num(); j++)
 				{
-					FVector Bottom1 = JumpLocations[j][i].BottomMiddle;
-					FVector Top1 = JumpLocations[j][i].TopMiddle;
+					if(JumpLocations[j].Num() < 2)
+						continue;
+					for(int i = 0; i < JumpLocations[j].Num() - 1; i++)
+					{
+						FVector Bottom1 = JumpLocations[j][i].BottomMiddle;
+						FVector Top1 = JumpLocations[j][i].TopMiddle;
 		
-					FVector Bottom2 = JumpLocations[j][i + 1].BottomMiddle;
-					FVector Top2 = JumpLocations[j][i + 1].TopMiddle;
+						FVector Bottom2 = JumpLocations[j][i + 1].BottomMiddle;
+						FVector Top2 = JumpLocations[j][i + 1].TopMiddle;
 				
-					FLinearColor LineColor = FLinearColor::Red;
-					FLinearColor LineColor2 = FLinearColor::Green;
-					float LineThickness = 3.0f;
+						FLinearColor LineColor = FLinearColor::Red;
+						FLinearColor LineColor2 = FLinearColor::Green;
+						float LineThickness = 3.0f;
 			
-					DSceneProxy->Lines.Emplace(Bottom1, Bottom2, LineColor2.ToFColor(true), LineThickness);
-					DSceneProxy->Lines.Emplace(Top1, Top2, LineColor2.ToFColor(true), LineThickness);
-					DSceneProxy->Lines.Emplace(Bottom1, Top1, LineColor.ToFColor(true), LineThickness);
-					DSceneProxy->Lines.Emplace(Bottom2, Top2, LineColor.ToFColor(true), LineThickness);
+						DSceneProxy->Lines.Emplace(Bottom1, Bottom2, LineColor2.ToFColor(true), LineThickness);
+						DSceneProxy->Lines.Emplace(Top1, Top2, LineColor2.ToFColor(true), LineThickness);
+						DSceneProxy->Lines.Emplace(Bottom1, Top1, LineColor.ToFColor(true), LineThickness);
+						DSceneProxy->Lines.Emplace(Bottom2, Top2, LineColor.ToFColor(true), LineThickness);
+					}
+				}
+			}
+			else
+			{
+				//TArray<TArray<FCapsuleLocation>> NewJumpLocations;
+				//TArray<TArray<FCapsuleLocation>> NewLocations = JumpVisualizationModule.CalculateJumpLocation(JumpLocations);
+				for(int j = 0; j < JumpLocations.Num(); j++)
+				{
+					if(JumpLocations[j].Num() < 2)
+						continue;
+					FPredictProjectilePathParams PredictParams;
+					FPredictProjectilePathResult PredictResult;
+					//Gravity Scale?
+					//Speed - NewSpeed/Speed
+					PredictParams.OverrideGravityZ = JumpLocations[j][0].GravityScale * World->GetGravityZ();
+					PredictParams.LaunchVelocity = JumpLocations[j][0].Velocity;
+					//PredictParams.LaunchVelocity.Z = 0.f;
+					PredictParams.LaunchVelocity.Z = Owner->JumpZVelocity;// - JumpLocations[j][0].JumpZVelocity;
+					PredictParams.StartLocation = JumpLocations[j][0].Location;
+					PredictParams.MaxSimTime = 20.f;
+					PredictParams.DrawDebugType = EDrawDebugTrace::None;
+
+					UGameplayStatics::PredictProjectilePath(World, PredictParams, PredictResult);
+
+					
+					for(int i = 0; i < PredictResult.PathData.Num() - 1; i++)
+					{
+						if(PredictResult.PathData.Num() < 2)
+							continue;
+
+						FVector Bottom1 = PredictResult.PathData[i].Location;
+						Bottom1.Z -= JumpLocations[j][0].HalfCapsuleHeight;
+				
+						FVector Top1 = PredictResult.PathData[i].Location;
+						Top1.Z += JumpLocations[j][0].HalfCapsuleHeight;
+
+						FVector Bottom2 = PredictResult.PathData[i + 1].Location;
+						Bottom2.Z -= JumpLocations[j][0].HalfCapsuleHeight;
+				
+						FVector Top2 = PredictResult.PathData[i + 1].Location;
+						Top2.Z += JumpLocations[j][0].HalfCapsuleHeight;
+
+						FLinearColor LineColor = FLinearColor::Red;
+						FLinearColor LineColor2 = FLinearColor::Green;
+						float LineThickness = 3.0f;
+			
+						DSceneProxy->Lines.Emplace(Bottom1, Bottom2, LineColor2.ToFColor(true), LineThickness);
+						DSceneProxy->Lines.Emplace(Top1, Top2, LineColor2.ToFColor(true), LineThickness);
+						DSceneProxy->Lines.Emplace(Bottom1, Top1, LineColor.ToFColor(true), LineThickness);
+						DSceneProxy->Lines.Emplace(Bottom2, Top2, LineColor.ToFColor(true), LineThickness);
+					}
 				}
 			}
 		}

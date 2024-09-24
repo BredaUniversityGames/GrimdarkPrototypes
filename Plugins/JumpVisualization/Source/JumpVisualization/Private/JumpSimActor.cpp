@@ -4,6 +4,8 @@
 #include "JumpSimActor.h"
 
 #include "JumpSimComp.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
 AJumpSimActor::AJumpSimActor()
@@ -27,3 +29,25 @@ void AJumpSimActor::Tick(float DeltaTime)
 
 }
 
+#if WITH_EDITOR
+void AJumpSimActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	if(PropertyName == GET_MEMBER_NAME_CHECKED(AJumpSimActor, CharacterClass))
+	{
+		TakeValuesFromClass();
+	}
+}
+#endif
+
+void AJumpSimActor::TakeValuesFromClass()
+{
+	if(!CharacterClass || !*CharacterClass)
+		return;
+	const UCharacterMovementComponent* CharacterMovComp = CharacterClass->GetDefaultObject<ACharacter>()->GetCharacterMovement();
+	GravityScale = CharacterMovComp->GravityScale;
+	JumpZVelocity = CharacterMovComp->JumpZVelocity;
+	Speed = CharacterMovComp->MaxWalkSpeed;
+}

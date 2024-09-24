@@ -21,7 +21,11 @@ public:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	UPROPERTY(EditAnywhere)
-	float GravityOverride = 0.f;
+	TSubclassOf<ACharacter> CharacterClass;
+	UPROPERTY(EditAnywhere)
+	bool TrackCharacterValues = false;
+	UPROPERTY(EditAnywhere)
+	float GravityScale = 1.f;
 	UPROPERTY(EditAnywhere)
 	float Speed = 500.f;
 	//UPROPERTY(EditAnywhere)
@@ -31,10 +35,16 @@ public:
 	//UPROPERTY(EditAnywhere)
 	//float BrakingDeceleration = 0.f;
 	//UPROPERTY(EditAnywhere)
+	
 	float SimTime = 20.f;
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	void TakeValuesFromClass();
+protected:
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 protected:
 	UJumpSimComp* JumpSimComp;

@@ -2,6 +2,7 @@
 
 #include "FJumpDebugSceneProxy.h"
 #include "JumpSimActor.h"
+#include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
 UJumpSimComp::UJumpSimComp()
@@ -13,7 +14,8 @@ UJumpSimComp::UJumpSimComp()
 	bVisibleInReflectionCaptures = false;
 	bVisibleInRayTracing = false;
 	bVisibleInRealTimeSkyCaptures = false;
-
+	//MarkRenderTransformDirty();
+	MarkRenderInstancesDirty();
 	//bIsEditorOnly = true;
 
 #if WITH_EDITORONLY_DATA
@@ -24,7 +26,7 @@ UJumpSimComp::UJumpSimComp()
 FDebugRenderSceneProxy* UJumpSimComp::CreateDebugSceneProxy()
 {
 	FJumpDebugSceneProxy* DSceneProxy = new FJumpDebugSceneProxy(this);
-	const AJumpSimActor* Owner = Cast<AJumpSimActor>(GetOwner());
+	AJumpSimActor* Owner = Cast<AJumpSimActor>(GetOwner());
 	if(!Owner)
 		return DSceneProxy;
 
@@ -35,8 +37,9 @@ FDebugRenderSceneProxy* UJumpSimComp::CreateDebugSceneProxy()
 	{
 		FPredictProjectilePathParams PredictParams;
 		FPredictProjectilePathResult PredictResult;
-
-		PredictParams.OverrideGravityZ = Owner->GravityOverride;
+		if(Owner->TrackCharacterValues)
+			Owner->TakeValuesFromClass();
+		PredictParams.OverrideGravityZ = Owner->GravityScale * World->GetGravityZ();
 		PredictParams.LaunchVelocity = Owner->GetActorForwardVector() * Owner->Speed;
 		PredictParams.LaunchVelocity.Z += Owner->JumpZVelocity;
 		PredictParams.StartLocation = Owner->GetActorLocation();

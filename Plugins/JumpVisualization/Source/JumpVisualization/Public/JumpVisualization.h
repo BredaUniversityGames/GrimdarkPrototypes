@@ -47,7 +47,7 @@ public:
 	void SetSessionNumberToShow(int NewSessionNumberToShow) { SessionNumberToShow = NewSessionNumberToShow; UE_LOG(LogTemp, Warning, TEXT("New Session: %i"), SessionNumberToShow)}
 	TMap<int*, TArray<FResourceData>> GetResourceData() const { return ResourceData; }
 	void AddResourceToTrack(int* Variable) { ResourceData.Add(Variable, TArray<FResourceData>()); }
-
+	TArray<TArray<FCapsuleLocation>> CalculateJumpLocation(const TArray<TArray<FCapsuleLocation>>& SessionJumps);
 	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
 	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
 private:                             
