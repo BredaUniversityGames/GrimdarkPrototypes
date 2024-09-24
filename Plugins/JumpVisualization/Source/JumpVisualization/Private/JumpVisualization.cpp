@@ -17,6 +17,7 @@
 #include "Serialization/BufferArchive.h"
 #include "JumpVisActor.h"
 #include "LevelEditor.h"
+#include "SimJumpCharacter.h"
 #include "SimulationCharacterMovementComponent.h"
 #include "SLevelViewport.h"
 #include "Containers/DirectoryTree.h"
@@ -58,37 +59,47 @@ TArray<TArray<FCapsuleLocation>> FJumpVisualizationModule::CalculateJumpLocation
 	if(!World)
 		return TArray<TArray<FCapsuleLocation>>();
 	
-	USimulationCharacterMovementComponent SimChMovComp;
-	TObjectPtr<ACharacter> SimCh = World->SpawnActor<ACharacter>();
-	TObjectPtr<USceneComponent> SimSceneComp = World->SpawnActor<USceneComponent>();
-	SimChMovComp.SetCharacterOwner(SimCh);
-	SimChMovComp.SetUpdatedComponent(SimSceneComp);
+	//TSharedPtr<USimulationCharacterMovementComponent> SimChMovComp = MakeShared<USimulationCharacterMovementComponent>();
+	TObjectPtr<ASimJumpCharacter> SimCh;// = World->SpawnActor<ASimJumpCharacter>();
+	//TSharedPtr<ASimJumpCharacter> SimCh = MakeShared<ASimJumpCharacter>();
+	for(TActorIterator<ASimJumpCharacter> ActorIt(World); ActorIt; ++ActorIt)
+	{
+		SimCh = *ActorIt;
+	}
+	if(!SimCh)
+		return TArray<TArray<FCapsuleLocation>>();
+	USimulationCharacterMovementComponent* SimChMovComp = Cast<USimulationCharacterMovementComponent>(SimCh->GetMovementComponent());
+	if(!SimChMovComp)
+		return TArray<TArray<FCapsuleLocation>>();
+	SimChMovComp->SetCharacterOwner(SimCh);
+	SimChMovComp->SetUpdatedComponent(SimCh->GetCapsuleComponent());
 	//TArray<FCapsuleLocation> JumpLocations;
-	SimChMovComp.Velocity = SessionJumps[0][0].Velocity;
-	SimChMovComp.AirControl = SessionJumps[0][0].AirControl;
-	SimChMovComp.AirControlBoostMultiplier = SessionJumps[0][0].AirControlBoostMultiplier;
-	SimChMovComp.AirControlBoostVelocityThreshold = SessionJumps[0][0].AirControlBoostVelocityThreshold;
-	SimChMovComp.MaxSimulationIterations = SessionJumps[0][0].MaxSimulationIterations;
-	SimChMovComp.MaxSimulationTimeStep = SessionJumps[0][0].MaxSimulationTimeStep;
-	SimSceneComp->SetWorldLocation(SessionJumps[0][0].Location);
-	SimSceneComp->SetWorldRotation(SessionJumps[0][0].Rotation);
+	SimChMovComp->Velocity = SessionJumps[0][0].Velocity;
+	SimChMovComp->AirControl = SessionJumps[0][0].AirControl;
+	SimChMovComp->AirControlBoostMultiplier = SessionJumps[0][0].AirControlBoostMultiplier;
+	SimChMovComp->AirControlBoostVelocityThreshold = SessionJumps[0][0].AirControlBoostVelocityThreshold;
+	SimChMovComp->MaxSimulationIterations = SessionJumps[0][0].MaxSimulationIterations;
+	SimChMovComp->MaxSimulationTimeStep = SessionJumps[0][0].MaxSimulationTimeStep;
+	SimCh->SetActorLocation(SessionJumps[0][0].Location);
+	SimCh->SetActorRotation(SessionJumps[0][0].Rotation);
 	TArray<TArray<FCapsuleLocation>> Output;
 	Output.Emplace(TArray<FCapsuleLocation>());
 	for(int i = 0; i < 720; i++)
 	{
 		if(SessionJumps[0].Num() > i)
-			SimChMovComp.SetAcceleration(SessionJumps[0][i].Acceleration);
+			SimChMovComp->SetAcceleration(SessionJumps[0][i].Acceleration);
 		
-		SimChMovComp.PhysFalling(0.016f, 8);
+		SimChMovComp->PhysFalling(0.016f, 0);
 		FCapsuleLocation Location;
-		Location.TopMiddle = SimChMovComp.GetActorLocation();
-		Location.BottomMiddle = SimChMovComp.GetActorLocation();
+		Location.TopMiddle = SimChMovComp->GetActorLocation();
+		Location.BottomMiddle = SimChMovComp->GetActorLocation();
 		Location.TopMiddle.Z += SessionJumps[0][0].HalfCapsuleHeight;
 		Location.BottomMiddle.Z -= SessionJumps[0][0].HalfCapsuleHeight;
-		Location.Location = SimChMovComp.GetActorLocation();
+		Location.Location = SimChMovComp->GetActorLocation();
 		Output.Last().Emplace(Location);
 	}
-	
+
+	//World->DestroyActor(SimCh);
 	return Output;
 	
 	//TArray<TArray<FCapsuleLocation>> NewJumpLocations;
@@ -623,7 +634,7 @@ void FJumpVisualizationModule::StartRecordingData(bool IsSimulating)
 	CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CheckPlayerData);
 	//CheckResourceDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CollectResourceData);
 	FTimerDelegate TimerDelegate = FTimerDelegate::CreateRaw(this, &FJumpVisualizationModule::CollectResourceData);
-	GEditor->GetTimerManager()->SetTimer(CollectResourceDataTimer, TimerDelegate, 0.5f, true, 0.f);
+	GEditor->GetTimerManager()->SetTimer(CollectResourceDataTimer, TimerDelegate, 0.016f, true, 0.f);
 
 }
 
@@ -642,7 +653,7 @@ void FJumpVisualizationModule::CheckPlayerData()
 		FCoreDelegates::OnEndFrame.Remove(CheckJumpDelegate);
 		JumpLocations.Add(TArray<FCapsuleLocation>());
 		FTimerDelegate TimerDelegate = FTimerDelegate::CreateRaw(this, &FJumpVisualizationModule::CollectJumpData, CharacterRef);
-		GEditor->GetTimerManager()->SetTimer(CollectJumpDataTimer, TimerDelegate, 0.1f, true, 0.f);
+		GEditor->GetTimerManager()->SetTimer(CollectJumpDataTimer, TimerDelegate, 0.016f, true, 0.f);
 	}
 }
 
@@ -658,6 +669,13 @@ void FJumpVisualizationModule::CollectJumpData(ACharacter* Character)
 	float Radius = 0.f;
 	float HalfHeight = 0.f;
 	CapsuleRef->GetScaledCapsuleSize(Radius, HalfHeight);
+	Location.Acceleration = MovementRef->GetCurrentAcceleration();
+	Location.MaxAcceleration = MovementRef->GetMaxAcceleration();
+	Location.MaxSimulationIterations = MovementRef->MaxSimulationIterations;
+	Location.MaxSimulationTimeStep = MovementRef->MaxSimulationTimeStep;
+	Location.AirControl = MovementRef->AirControl;
+	Location.AirControlBoostMultiplier = MovementRef->AirControlBoostMultiplier;
+	Location.AirControlBoostVelocityThreshold = MovementRef->AirControlBoostVelocityThreshold;
 	Location.JumpZVelocity = MovementRef->JumpZVelocity;
 	Location.Velocity = MovementRef->Velocity;
 	Location.GravityScale = MovementRef->GravityScale;
@@ -671,6 +689,7 @@ void FJumpVisualizationModule::CollectJumpData(ACharacter* Character)
 	Location.Speed = Character->GetVelocity().Size();
 	Location.GravityScale = MovementRef->GravityScale;
 	Location.JumpZVelocity = MovementRef->JumpZVelocity;
+	
 	JumpLocations.Last().Add(Location);
 	if(MovementRef && !MovementRef->IsFalling())
 	{

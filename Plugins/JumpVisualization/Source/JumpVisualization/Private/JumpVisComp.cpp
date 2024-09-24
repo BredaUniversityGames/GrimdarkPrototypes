@@ -84,42 +84,39 @@ FDebugRenderSceneProxy* UJumpVisComp::CreateDebugSceneProxy()
 			else
 			{
 				//TArray<TArray<FCapsuleLocation>> NewJumpLocations;
-				//TArray<TArray<FCapsuleLocation>> NewLocations = JumpVisualizationModule.CalculateJumpLocation(JumpLocations);
-				for(int j = 0; j < JumpLocations.Num(); j++)
+				TArray<TArray<FCapsuleLocation>> NewJumpLocations = JumpVisualizationModule.CalculateJumpLocation(JumpLocations);
+				for(int j = 0; j < NewJumpLocations.Num(); j++)
 				{
-					if(JumpLocations[j].Num() < 2)
+					if(NewJumpLocations[j].Num() < 2)
 						continue;
-					FPredictProjectilePathParams PredictParams;
-					FPredictProjectilePathResult PredictResult;
-					//Gravity Scale?
-					//Speed - NewSpeed/Speed
-					PredictParams.OverrideGravityZ = JumpLocations[j][0].GravityScale * World->GetGravityZ();
-					PredictParams.LaunchVelocity = JumpLocations[j][0].Velocity;
-					//PredictParams.LaunchVelocity.Z = 0.f;
-					PredictParams.LaunchVelocity.Z = Owner->JumpZVelocity;// - JumpLocations[j][0].JumpZVelocity;
-					PredictParams.StartLocation = JumpLocations[j][0].Location;
-					PredictParams.MaxSimTime = 20.f;
-					PredictParams.DrawDebugType = EDrawDebugTrace::None;
-
-					UGameplayStatics::PredictProjectilePath(World, PredictParams, PredictResult);
+					//FPredictProjectilePathParams PredictParams;
+					//FPredictProjectilePathResult PredictResult;
+					////Gravity Scale?
+					////Speed - NewSpeed/Speed
+					//PredictParams.OverrideGravityZ = NewJumpLocations[j][0].GravityScale * World->GetGravityZ();
+					//PredictParams.LaunchVelocity = NewJumpLocations[j][0].Velocity;
+					////PredictParams.LaunchVelocity.Z = 0.f;
+					//PredictParams.LaunchVelocity.Z = Owner->JumpZVelocity;// - JumpLocations[j][0].JumpZVelocity;
+					//PredictParams.StartLocation = NewJumpLocations[j][0].Location;
+					//PredictParams.MaxSimTime = 20.f;
+					//PredictParams.DrawDebugType = EDrawDebugTrace::None;
+//
+					//UGameplayStatics::PredictProjectilePath(World, PredictParams, PredictResult);
 
 					
-					for(int i = 0; i < PredictResult.PathData.Num() - 1; i++)
+					for(int i = 0; i < NewJumpLocations[j].Num() - 1; i++)
 					{
-						if(PredictResult.PathData.Num() < 2)
-							continue;
-
-						FVector Bottom1 = PredictResult.PathData[i].Location;
-						Bottom1.Z -= JumpLocations[j][0].HalfCapsuleHeight;
+						FVector Bottom1 = NewJumpLocations[j][i].BottomMiddle;
+						//Bottom1.Z -= JumpLocations[j][0].HalfCapsuleHeight;
 				
-						FVector Top1 = PredictResult.PathData[i].Location;
-						Top1.Z += JumpLocations[j][0].HalfCapsuleHeight;
+						FVector Top1 = NewJumpLocations[j][i].TopMiddle;
+						//Top1.Z += JumpLocations[j][0].HalfCapsuleHeight;
 
-						FVector Bottom2 = PredictResult.PathData[i + 1].Location;
-						Bottom2.Z -= JumpLocations[j][0].HalfCapsuleHeight;
+						FVector Bottom2 = NewJumpLocations[j][i + 1].BottomMiddle;
+						//Bottom2.Z -= JumpLocations[j][0].HalfCapsuleHeight;
 				
-						FVector Top2 = PredictResult.PathData[i + 1].Location;
-						Top2.Z += JumpLocations[j][0].HalfCapsuleHeight;
+						FVector Top2 = NewJumpLocations[j][i + 1].TopMiddle;
+						//Top2.Z += JumpLocations[j][0].HalfCapsuleHeight;
 
 						FLinearColor LineColor = FLinearColor::Red;
 						FLinearColor LineColor2 = FLinearColor::Green;

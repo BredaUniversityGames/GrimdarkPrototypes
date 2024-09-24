@@ -70,7 +70,7 @@ inline FArchive& operator<<(FArchive& Ar, FCapsuleLocation& L)
 	Ar << L.Speed << L.Velocity << L.GravityScale << L.JumpZVelocity;
 	Ar << L.DeltaTime;
 	Ar << L.Rotation << L.Acceleration << L.MaxAcceleration << L.MaxFlyDeceleration;
-	Ar << L.AirControl;
+	Ar << L.AirControl << L.AirControlBoostMultiplier << L.AirControlBoostVelocityThreshold;
 	Ar << L.MaxSimulationIterations << L.MaxSimulationTimeStep;
 	return Ar;
 }
