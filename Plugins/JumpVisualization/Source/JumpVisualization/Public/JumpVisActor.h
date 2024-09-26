@@ -101,6 +101,15 @@ public:
 	float Speed = 500.f;
 	UPROPERTY(EditAnywhere)
 	float JumpZVelocity = 700.f;
+	UPROPERTY(EditAnywhere)
+	bool UseDifferentAirControl = false;
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "-1.0", ClampMax = "1.0"))
+	float AirControlDirection = 0.f;
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AirControl = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	bool ShowAirControlRange = false;
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

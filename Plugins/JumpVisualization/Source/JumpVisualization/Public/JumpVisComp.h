@@ -18,4 +18,6 @@ public:
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& Transform) const override;
 	virtual bool ShouldRecreateProxyOnUpdateTransform() const override {return true;};
+
+	FTimerHandle ResetTimer;
 };

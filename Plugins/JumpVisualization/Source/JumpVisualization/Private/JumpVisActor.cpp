@@ -4,6 +4,7 @@
 #include "JumpVisActor.h"
 
 #include "JumpVisComp.h"
+#include "JumpVisualization.h"
 #include "LevelEditorViewport.h"
 
 // Sets default values
@@ -28,6 +29,7 @@ void AJumpVisActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	GEditor->MoveActorInFrontOfCamera(*this, GCurrentLevelEditingViewportClient->GetViewLocation(), 
 				  GCurrentLevelEditingViewportClient->GetViewRotation().Vector());
-
+	FJumpVisualizationModule& JumpVisualizationModule = FModuleManager::GetModuleChecked<FJumpVisualizationModule>("JumpVisualization");
+	JumpVisualizationModule.FindAndModifyJumpLocations(this);
 }
 

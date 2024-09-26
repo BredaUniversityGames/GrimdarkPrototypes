@@ -6,6 +6,8 @@
 #include "Modules/ModuleManager.h"
 #include <vector>
 
+class USimulationCharacterMovementComponent;
+class ASimJumpCharacter;
 class AJumpVisActor;
 struct FCapsuleLocation;
 
@@ -47,7 +49,9 @@ public:
 	void SetSessionNumberToShow(int NewSessionNumberToShow) { SessionNumberToShow = NewSessionNumberToShow; UE_LOG(LogTemp, Warning, TEXT("New Session: %i"), SessionNumberToShow)}
 	TMap<int*, TArray<FResourceData>> GetResourceData() const { return ResourceData; }
 	void AddResourceToTrack(int* Variable) { ResourceData.Add(Variable, TArray<FResourceData>()); }
-	TArray<TArray<FCapsuleLocation>> CalculateJumpLocation(const TArray<TArray<FCapsuleLocation>>& SessionJumps);
+	void CalculateJumpLocation(const TArray<TArray<FCapsuleLocation>>& SessionJumps, TArray<TArray<FCapsuleLocation>>& Output, const AJumpVisActor* VisActor);
+	void FindAndModifyJumpLocations(const AJumpVisActor* VisActor);
+	//void ModifyJumpLocations(USimulationCharacterMovementComponent SimChMovComp, TObjectPtr<ASimJumpCharacter> SimCh, );
 	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
 	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
 private:                             
@@ -63,7 +67,9 @@ private:
 	void OnEndPIE(bool IsSimulating);
 	//void CheckFilesNumber();
 public:
-	
+	TArray<TArray<FCapsuleLocation>> ModifiedJumpLocations;
+	TArray<TPair<TArray<FCapsuleLocation>, TArray<FCapsuleLocation>>> AirControlJumpRange;
+	bool ShowAirControlRange = false;
 private:
 	
 	FTimerHandle CollectJumpDataTimer;
@@ -80,4 +86,6 @@ private:
 	uint8 SessionNumberToShow = 1;
 	TArray<TArray<FCapsuleLocation>> JumpLocations;
 	TMap<int*, TArray<FResourceData>> ResourceData;
+	
+	TObjectPtr<ASimJumpCharacter> SimCh = nullptr;
 };
