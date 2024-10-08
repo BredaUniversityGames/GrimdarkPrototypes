@@ -6,6 +6,7 @@
 #include "LevelEditor.h"
 #include "Components/TextRenderComponent.h"
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 // Sets default values
 ADevNoteActor::ADevNoteActor()
@@ -24,6 +25,7 @@ ADevNoteActor::ADevNoteActor()
 	NoteText->SetupAttachment(NoteMesh);
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(FName("LevelEditor"));
 	LevelEditor.OnActorSelectionChanged().AddUObject(this, &ADevNoteActor::CheckClickedActor);
+	DefaultLocation = NoteText->GetRelativeLocation();
 }
 
 void ADevNoteActor::CheckClickedActor(const TArray<UObject*>& NewSelection, bool bForceRefresh)
@@ -64,17 +66,32 @@ void ADevNoteActor::OpenTextEditWidget()
 			.Title(FText::FromString("Edit Text"))
 			.ClientSize(FVector2D(400, 100))
 			.SupportsMinimize(false).SupportsMaximize(false);
+
 		
-		TSharedRef<SEditableTextBox> EditableTextBox = SNew(SEditableTextBox)
+		
+		TSharedRef<SMultiLineEditableTextBox> EditableTextBox = SNew(SMultiLineEditableTextBox)
 			.Text(FText::FromString(CurrentText))
 			.OnTextCommitted_Lambda([this](const FText& NewText, ETextCommit::Type CommitType)
 			{
-				if (CommitType == ETextCommit::OnEnter)
+				if (CommitType == ETextCommit::OnCleared)
 				{
+					FString NewTextString = NewText.ToString();
 					NoteText->SetText(NewText);
-					//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Text Updated!"));
-				}
-			});
+					int Lines = 1;
+					for(int i = 0; i < NewTextString.Len(); i++)
+					{
+						if(NewTextString[i] == '\n')
+						{
+							Lines++;
+						}
+					}
+					FVector NewLocation = DefaultLocation;
+					NewLocation.Z -= (Lines - 1) * NoteText->WorldSize * NoteText->GetRelativeScale3D().Z;
+					NoteText->SetRelativeLocation(NewLocation);
+								//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Text Updated!"));
+							}
+						});
+
 		
 		TextWindow->SetContent(EditableTextBox);
 		TextWindow->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>&) { IsEditOpen = false; });

@@ -17,9 +17,9 @@ public:
 	// Sets default values for this actor's properties
 	ADevNoteActor();
 
-	UPROPERTY(EditAnywhere, Category = "Mesh")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
 	UStaticMeshComponent* NoteMesh;
-	UPROPERTY(EditAnywhere, Category = "Text")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
 	UTextRenderComponent* NoteText;
 
 	void CheckClickedActor(const TArray<UObject*>& NewSelection, bool bForceRefresh);
@@ -34,4 +34,6 @@ public:
 protected:
 	FDateTime TimeLastClick = FDateTime::MinValue();
 	bool IsEditOpen = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
+	FVector DefaultLocation = FVector::ZeroVector;
 };
