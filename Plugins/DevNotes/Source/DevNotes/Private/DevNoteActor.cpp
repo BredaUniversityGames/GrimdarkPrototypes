@@ -6,6 +6,7 @@
 #include "LevelEditor.h"
 #include "Components/TextRenderComponent.h"
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
+#include "Engine/Font.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 // Sets default values
@@ -85,13 +86,20 @@ void ADevNoteActor::OpenTextEditWidget()
 							Lines++;
 						}
 					}
+					float NoteHeight = NoteMesh->Bounds.BoxExtent.Z * 2.f;
+					float NewWorldSize = NoteHeight / (Lines * NoteText->GetRelativeScale3D().Z);
+					NoteText->WorldSize = NewWorldSize;
+					
 					FVector NewLocation = DefaultLocation;
+					float MaxHeight = NoteText->Font->GetMaxCharHeight();
+					NewLocation.Z = NoteHeight / 2.f - NewWorldSize;
 					NewLocation.Z -= (Lines - 1) * NoteText->WorldSize * NoteText->GetRelativeScale3D().Z;
 					NoteText->SetRelativeLocation(NewLocation);
-								//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Text Updated!"));
-							}
-						});
-
+					//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Text Updated!"));
+				}
+			});
+		//FontDefaultLineSpacing
+		//	NoteText->Font->spac
 		
 		TextWindow->SetContent(EditableTextBox);
 		TextWindow->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>&) { IsEditOpen = false; });
