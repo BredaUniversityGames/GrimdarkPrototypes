@@ -26,6 +26,8 @@ public class DevNotes : ModuleRules
 			new string[]
 			{
 				"Core",
+				"UMG",
+				"SlateCore"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

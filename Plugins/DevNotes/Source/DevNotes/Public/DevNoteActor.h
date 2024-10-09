@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "DevNoteActor.generated.h"
 
+class UWidgetComponent;
 class UTextRenderComponent;
 
 UCLASS()
@@ -19,14 +20,18 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
 	UStaticMeshComponent* NoteMesh;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
+	//UTextRenderComponent* NoteText;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
-	UTextRenderComponent* NoteText;
+	UWidgetComponent* NoteWidget;
 
 	void CheckClickedActor(const TArray<UObject*>& NewSelection, bool bForceRefresh);
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	void OpenTextEditWidget();
+	void FitTextVertically(FString& Text);
+	void FitTextHorizontally(FString& Text);
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

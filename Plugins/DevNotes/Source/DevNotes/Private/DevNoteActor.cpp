@@ -4,7 +4,10 @@
 #include "DevNoteActor.h"
 
 #include "LevelEditor.h"
+#include "NoteTextWidget.h"
+#include "Components/MultiLineEditableTextBox.h"
 #include "Components/TextRenderComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
 #include "Engine/Font.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -22,11 +25,15 @@ ADevNoteActor::ADevNoteActor()
 		NoteMesh->SetStaticMesh(CubeMeshAsset.Object);
 	}
 
-	NoteText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NoteText"));
-	NoteText->SetupAttachment(NoteMesh);
+	NoteWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("NoteText"));
+	NoteWidget->SetWidgetClass(TSubclassOf<UNoteTextWidget>());
+	NoteWidget->SetupAttachment(NoteMesh);
+	
+	//NoteText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NoteText"));
+	//NoteText->SetupAttachment(NoteMesh);
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(FName("LevelEditor"));
 	LevelEditor.OnActorSelectionChanged().AddUObject(this, &ADevNoteActor::CheckClickedActor);
-	DefaultLocation = NoteText->GetRelativeLocation();
+	//DefaultLocation = NoteText->GetRelativeLocation();
 }
 
 void ADevNoteActor::CheckClickedActor(const TArray<UObject*>& NewSelection, bool bForceRefresh)
@@ -61,7 +68,8 @@ void ADevNoteActor::OpenTextEditWidget()
 	//if (GEditor && GEditor->IsEditor())
 	IsEditOpen = true;
 	{
-		const FString CurrentText = NoteText->Text.ToString();
+		UNoteTextWidget* NoteTextWidget = Cast<UNoteTextWidget>(NoteWidget->GetWidget());
+		const FString CurrentText = NoteTextWidget->TextBox->GetText().ToString();//->Text.ToString();
 		
 		TSharedRef<SWindow> TextWindow = SNew(SWindow)
 			.Title(FText::FromString("Edit Text"))
@@ -77,24 +85,24 @@ void ADevNoteActor::OpenTextEditWidget()
 				if (CommitType == ETextCommit::OnCleared)
 				{
 					FString NewTextString = NewText.ToString();
-					NoteText->SetText(NewText);
-					int Lines = 1;
-					for(int i = 0; i < NewTextString.Len(); i++)
+					//NoteText->SetText(NewText);
+					UNoteTextWidget* NoteTextWidget = Cast<UNoteTextWidget>(NoteWidget->GetWidget());
+					if(NoteTextWidget)
 					{
-						if(NewTextString[i] == '\n')
-						{
-							Lines++;
-						}
+						NoteTextWidget->TextBox->SetText(NewText);
 					}
-					float NoteHeight = NoteMesh->Bounds.BoxExtent.Z * 2.f;
-					float NewWorldSize = NoteHeight / (Lines * NoteText->GetRelativeScale3D().Z);
-					NoteText->WorldSize = NewWorldSize;
-					
-					FVector NewLocation = DefaultLocation;
-					float MaxHeight = NoteText->Font->GetMaxCharHeight();
-					NewLocation.Z = NoteHeight / 2.f - NewWorldSize;
-					NewLocation.Z -= (Lines - 1) * NoteText->WorldSize * NoteText->GetRelativeScale3D().Z;
-					NoteText->SetRelativeLocation(NewLocation);
+					//bool TextFit = false;
+					//while(!TextFit)
+					//{
+					//	FitTextHorizontally(NewTextString);
+					//	NoteText->SetText(FText::FromString(NewTextString));
+					//	FitTextVertically(NewTextString);
+					//	TextFit = true;
+					//}
+					//int32 Height, Width;
+					//NoteText->Font->GetStringHeightAndWidth(NewTextString, Height, Width);
+					//float t = NoteText->WorldSize / Height;
+					//UE_LOG(LogTemp, Warning, TEXT("W: %f and H: %f"), static_cast<float>(Width) * t, t);
 					//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Text Updated!"));
 				}
 			});
@@ -105,6 +113,91 @@ void ADevNoteActor::OpenTextEditWidget()
 		TextWindow->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>&) { IsEditOpen = false; });
 		FSlateApplication::Get().AddWindow(TextWindow);
 	}
+}
+
+void ADevNoteActor::FitTextVertically(FString& Text)
+{
+	//int Lines = 1;                                                                        
+	//for(int i = 0; i < Text.Len(); i++)                                          
+	//{                                                                                     
+	//	if(Text[i] == '\n')                                                      
+	//	{                                                                                 
+	//		Lines++;                                                                      
+	//	}                                                                                 
+	//}                                                                                     
+	//float NoteHeight = NoteMesh->Bounds.BoxExtent.Z * 2.f;                                
+	//float NewWorldSize = NoteHeight / (Lines * NoteText->GetRelativeScale3D().Z);         
+	//NoteText->WorldSize = NewWorldSize;                                                   
+    //                                                                                  
+	//FVector NewLocation = DefaultLocation;                                                
+	//float MaxHeight = NoteText->Font->GetMaxCharHeight();                                 
+	//NewLocation.Z = NoteHeight / 2.f - NewWorldSize;                                      
+	//NewLocation.Z -= (Lines - 1) * NoteText->WorldSize * NoteText->GetRelativeScale3D().Z;
+	//NoteText->SetRelativeLocation(NewLocation);                                           
+}
+
+void ADevNoteActor::FitTextHorizontally(FString& Text)
+{
+	int Lines = 0;
+	FString FinalText = "";
+	FString NewText = Text;
+	int NewLineIndex = 0;
+	float NoteWidth = NoteMesh->Bounds.BoxExtent.X * 2.f;
+	while(NewText.FindChar('\n', NewLineIndex))
+	{
+		//int TextHeight, TextWidth;
+		//FString CurrentLine = NewText.Left(NewLineIndex);
+		//NoteText->Font->GetStringHeightAndWidth("a", TextHeight, TextWidth);
+		//const float Scale = NoteText->WorldSize / TextHeight;
+		//TextWidth *= Scale;
+		//if(TextWidth > NoteWidth)
+		//{
+		//	
+		//}
+		//int TextHeight, TextWidth;
+		//FString CurrentLine = NewText.Left(NewLineIndex);
+		//NoteText->Font->GetStringHeightAndWidth(CurrentLine.Mid(0, NewLineIndex), TextHeight, TextWidth);
+		//const float Scale = NoteText->WorldSize / TextHeight;
+		//TextWidth *= Scale;
+		//if(TextWidth > NoteWidth)
+		//{
+		//	bool CorrectSeparation = false;
+		//	FString CurrentLineCopy = CurrentLine;
+		//	TArray<int> SpaceIndices;
+		//	int SpaceIndex = 0;
+		//	int WordCount = 1;
+		//	FString NewLine = "";
+		//	while(CurrentLineCopy.FindChar(' ', SpaceIndex))
+		//	{
+		//		WordCount++;
+		//		SpaceIndices.Add(SpaceIndex);
+		//		int NewLineTextHeight, NewLineTextWidth;
+		//		FString CurrentWord = CurrentLineCopy.Mid(0, SpaceIndex);
+		//		NoteText->Font->GetStringHeightAndWidth(NewLine + CurrentWord, NewLineTextHeight, NewLineTextWidth);
+		//		NewLineTextWidth *= Scale;
+		//		if(NewLineTextWidth > NoteWidth)
+		//		{
+		//			FinalText += '\n';
+		//			FinalText += CurrentWord;
+		//			FinalText += ' ';
+		//			NewLine = "";
+		//		}
+		//		else
+		//		{
+		//			FinalText += CurrentWord;
+		//			FinalText += ' ';
+		//			NewLine += CurrentWord;
+		//			NewLine += " ";
+		//		}
+		//		CurrentLineCopy = CurrentLineCopy.RightChop(SpaceIndex + 1);
+		//		//CurrentLineCopy = CurrentLineCopy.RightChop(SpaceIndex + 1);
+		//	}
+		//	FinalText += '\n';
+		//	SpaceIndices.Add(CurrentLine.Len() - 1);
+		//}
+		//NewText = NewText.RightChop(NewLineIndex + 1);
+	}
+	Text = FinalText;
 }
 
 // Called when the game starts or when spawned
