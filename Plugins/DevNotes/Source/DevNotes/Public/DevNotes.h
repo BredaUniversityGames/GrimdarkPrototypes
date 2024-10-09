@@ -14,5 +14,6 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+	void CreateJiraIssue();
 	void CheckClickedActor(AActor* Actor);
 };
