@@ -13,7 +13,13 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	void BugReportButtonClicked();
+
 private:
+	void RegisterMenus();
 	void CreateJiraIssue();
 	void CheckClickedActor(AActor* Actor);
+
+private:
+	TSharedPtr<FUICommandList> BugReportCommands;
 };

@@ -43,6 +43,11 @@ public class DevNotes : ModuleRules
 				"HTTP",
 				"Json",
 				"JsonUtilities",
+				"EditorFramework",
+				"UnrealEd",
+				"ToolMenus",
+				"Projects",
+				"InputCore"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

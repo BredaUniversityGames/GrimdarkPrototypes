@@ -75,8 +75,6 @@ void ADevNoteActor::OpenTextEditWidget()
 			.Title(FText::FromString("Edit Text"))
 			.ClientSize(FVector2D(400, 100))
 			.SupportsMinimize(false).SupportsMaximize(false);
-
-		
 		
 		TSharedRef<SMultiLineEditableTextBox> EditableTextBox = SNew(SMultiLineEditableTextBox)
 			.Text(FText::FromString(CurrentText))
