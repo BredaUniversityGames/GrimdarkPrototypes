@@ -15,9 +15,9 @@ public:
 
 	void BugReportButtonClicked();
 
+	bool CreateJiraIssue(const FString& Name, const FString& Description, const FString& Priority);
 private:
 	void RegisterMenus();
-	void CreateJiraIssue();
 	void CheckClickedActor(AActor* Actor);
 
 private:

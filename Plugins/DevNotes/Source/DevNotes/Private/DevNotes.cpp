@@ -77,10 +77,42 @@ void FDevNotesModule::RegisterMenus()
 	}
 }
 
-void FDevNotesModule::CreateJiraIssue()
+bool FDevNotesModule::CreateJiraIssue(const FString& Name, const FString& Description, const FString& Priority)
 {
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
+	if(Name.Len() < 3)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Bug name %s is too short"), *Name);
+		return false;
+	}
+
+	if(Description.Len() < 20)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Description \n %s \n is too short"), *Description);
+		return false;
+	}
+
+	FString BugDescription = Description;
+	for(int i = 0; i < BugDescription.Len(); i++)
+		if(BugDescription[i] == '\n')
+		{
+			//BugDescription[i] = '\\n';
+			BugDescription[i] = '\\';
+			BugDescription.InsertAt(i + 1, "n");
+			i++;
+		}
+		else if (BugDescription[i] == '\r')
+		{
+			BugDescription.RemoveAt(i);
+			i--;
+			//BugDescription[i] = '\\';
+			//BugDescription.InsertAt(i + 1, "r");
+			//i++;
+		}
+			
+	//BugDescription = BugDescription.Replace(TEXT("\n"), TEXT("\\n"));
+	
 	Request->SetURL(TEXT("https://jira.buas.nl/rest/api/2/issue"));
 	Request->SetVerb("POST");
 	//Request->SetVerb("GET");
@@ -88,15 +120,16 @@ void FDevNotesModule::CreateJiraIssue()
 	FString B = FString("Bearer ") + FString("PersonalToken");
 	Request->SetHeader("Authorization", *B);
 	
-	FString JiraIssuePayload = R"(
+	FString JiraIssuePayload = FString::Printf(TEXT(R"(
     {
         "fields": {
             "project": { "key": "Y12223BEE" },
-            "summary": "Issue created from Unreal Engine",
-            "description": "This is a test issue created from within Unreal Engine.",
-            "issuetype": { "name": "Bug" }
+            "summary": "%s",
+            "description": "%s",
+            "issuetype": { "name": "Bug" },
+			"priority": { "name": "%s" }
         }
-    })";
+    })"), *Name, *BugDescription, *Priority);
 
 	Request->SetContentAsString(JiraIssuePayload);
 
@@ -113,6 +146,7 @@ void FDevNotesModule::CreateJiraIssue()
 	});
 
 	Request->ProcessRequest();
+	return true;
 }
 
 void FDevNotesModule::CheckClickedActor(AActor* Actor)
