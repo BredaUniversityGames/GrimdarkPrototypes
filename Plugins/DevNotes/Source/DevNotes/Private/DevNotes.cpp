@@ -32,6 +32,7 @@ void FDevNotesModule::StartupModule()
 	);
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevNotesModule::RegisterMenus));
+	GetAllJiraBugs();
 }
 
 void FDevNotesModule::ShutdownModule()
@@ -97,7 +98,6 @@ bool FDevNotesModule::CreateJiraIssue(const FString& Name, const FString& Descri
 	for(int i = 0; i < BugDescription.Len(); i++)
 		if(BugDescription[i] == '\n')
 		{
-			//BugDescription[i] = '\\n';
 			BugDescription[i] = '\\';
 			BugDescription.InsertAt(i + 1, "n");
 			i++;
@@ -106,16 +106,10 @@ bool FDevNotesModule::CreateJiraIssue(const FString& Name, const FString& Descri
 		{
 			BugDescription.RemoveAt(i);
 			i--;
-			//BugDescription[i] = '\\';
-			//BugDescription.InsertAt(i + 1, "r");
-			//i++;
 		}
-			
-	//BugDescription = BugDescription.Replace(TEXT("\n"), TEXT("\\n"));
 	
 	Request->SetURL(TEXT("https://jira.buas.nl/rest/api/2/issue"));
 	Request->SetVerb("POST");
-	//Request->SetVerb("GET");
 	Request->SetHeader("Content-Type", "application/json");
 	FString B = FString("Bearer ") + FString("PersonalToken");
 	Request->SetHeader("Authorization", *B);
@@ -147,6 +141,75 @@ bool FDevNotesModule::CreateJiraIssue(const FString& Name, const FString& Descri
 
 	Request->ProcessRequest();
 	return true;
+}
+
+bool FDevNotesModule::GetAllJiraBugs()
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+	Request->SetURL(TEXT("https://jira.buas.nl/rest/api/2/search"));
+	Request->SetVerb("POST");
+	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Accept", "application/json");
+	FString B = FString("Bearer ") + FString("PersonalToken");
+	Request->SetHeader("Authorization", *B);
+	FString JiraIssuePayload = FString::Printf(TEXT(R"(
+    {
+	    "expand": ["names", "schema"],
+	    "fields": ["summary", "description", "status", "assignee", "priority"],
+        "jql": "project = Y12223BEE AND issuetype = Bug",
+        "maxResults": 100,
+        "startAt": 0
+    })"));
+
+	Request->SetContentAsString(JiraIssuePayload);
+	Request->OnProcessRequestComplete().BindRaw(this, &FDevNotesModule::OnGetJiraBugs);
+
+	// Execute the request
+	Request->ProcessRequest();
+	
+	return true;
+}
+
+void FDevNotesModule::OnGetJiraBugs(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+{
+	if (!bWasSuccessful || !Response.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to get a valid response from Jira."));
+		return;
+	}
+	
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+	bool Success = FJsonSerializer::Deserialize(Reader, JsonObject);
+	if (Success && JsonObject.IsValid())
+	{
+		const TArray<TSharedPtr<FJsonValue>>* Issues;
+		if (JsonObject->TryGetArrayField(TEXT("issues"), Issues))
+		{
+			for (const TSharedPtr<FJsonValue>& IssueValue : *Issues)
+			{
+				TSharedPtr<FJsonObject> IssueObject = IssueValue->AsObject();
+				
+				FString KeyS = "key";
+				const FStringView Key(KeyS);
+				FString IssueKey = IssueObject->GetStringField(Key);
+				
+				const TSharedPtr<FJsonObject>* Fields;
+				if (IssueObject->TryGetObjectField(TEXT("fields"), Fields))
+				{
+					FString Summary = Fields->Get()->GetStringField(TEXT("summary"));
+					FString Description = Fields->Get()->GetStringField(TEXT("description"));
+					FString Priority = Fields->Get()->GetObjectField(TEXT("priority"))->GetStringField(TEXT("name"));
+
+					UE_LOG(LogTemp, Log, TEXT("Issue Key: %s, Summary: %s, Description : %s, Priority: %s"), *IssueKey, *Summary, *Description, *Priority);
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to parse Jira response as JSON."));
+	}
 }
 
 void FDevNotesModule::CheckClickedActor(AActor* Actor)
