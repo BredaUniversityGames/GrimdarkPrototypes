@@ -2,6 +2,7 @@
 
 #include "DevNotes.h"
 
+#include "BugData.h"
 #include "BugReportButtonStyle.h"
 #include "BugReportCommands.h"
 #include "Misc/MessageDialog.h"
@@ -9,6 +10,7 @@
 
 #include "DevNoteActor.h"
 #include "HttpModule.h"
+#include "JiraBugList.h"
 #include "Interfaces/IHttpResponse.h"
 
 static const FName BugReportTabName("BugReport");
@@ -32,7 +34,7 @@ void FDevNotesModule::StartupModule()
 	);
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevNotesModule::RegisterMenus));
-	GetAllJiraBugs();
+	GetAllJiraBugs(nullptr);
 }
 
 void FDevNotesModule::ShutdownModule()
@@ -143,7 +145,12 @@ bool FDevNotesModule::CreateJiraIssue(const FString& Name, const FString& Descri
 	return true;
 }
 
-bool FDevNotesModule::GetAllJiraBugs()
+void FDevNotesModule::RequestJiraBugs(UJiraBugList* BugListWidget)
+{
+	GetAllJiraBugs(BugListWidget);
+}
+
+bool FDevNotesModule::GetAllJiraBugs(UJiraBugList* BugListWidget)
 {
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 	Request->SetURL(TEXT("https://jira.buas.nl/rest/api/2/search"));
@@ -162,7 +169,7 @@ bool FDevNotesModule::GetAllJiraBugs()
     })"));
 
 	Request->SetContentAsString(JiraIssuePayload);
-	Request->OnProcessRequestComplete().BindRaw(this, &FDevNotesModule::OnGetJiraBugs);
+	Request->OnProcessRequestComplete().BindRaw(this, &FDevNotesModule::OnGetJiraBugs, BugListWidget);
 
 	// Execute the request
 	Request->ProcessRequest();
@@ -170,19 +177,21 @@ bool FDevNotesModule::GetAllJiraBugs()
 	return true;
 }
 
-void FDevNotesModule::OnGetJiraBugs(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+void FDevNotesModule::OnGetJiraBugs(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful, UJiraBugList* BugListWidget)
 {
 	if (!bWasSuccessful || !Response.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Failed to get a valid response from Jira."));
+		//BugListWidget->FillBugList(TArray<FBugData>());
 		return;
 	}
-	
+
 	TSharedPtr<FJsonObject> JsonObject;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
-	bool Success = FJsonSerializer::Deserialize(Reader, JsonObject);
+	const bool Success = FJsonSerializer::Deserialize(Reader, JsonObject);
 	if (Success && JsonObject.IsValid())
 	{
+		TArray<FBugData> BugList;
 		const TArray<TSharedPtr<FJsonValue>>* Issues;
 		if (JsonObject->TryGetArrayField(TEXT("issues"), Issues))
 		{
@@ -200,16 +209,19 @@ void FDevNotesModule::OnGetJiraBugs(FHttpRequestPtr Request, FHttpResponsePtr Re
 					FString Summary = Fields->Get()->GetStringField(TEXT("summary"));
 					FString Description = Fields->Get()->GetStringField(TEXT("description"));
 					FString Priority = Fields->Get()->GetObjectField(TEXT("priority"))->GetStringField(TEXT("name"));
-
-					UE_LOG(LogTemp, Log, TEXT("Issue Key: %s, Summary: %s, Description : %s, Priority: %s"), *IssueKey, *Summary, *Description, *Priority);
+					FString Assignee = Fields->Get()->GetObjectField(TEXT("assignee"))->GetStringField(TEXT("name"));
+					BugList.Emplace(IssueKey, Summary, Description, Priority, Assignee);
+					//UE_LOG(LogTemp, Log, TEXT("Issue Key: %s, Summary: %s, Description : %s, Priority: %s"), *IssueKey, *Summary, *Description, *Priority);
 				}
 			}
 		}
+		//BugListWidget->FillBugList(BugList);
 	}
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to parse Jira response as JSON."));
 	}
+	
 }
 
 void FDevNotesModule::CheckClickedActor(AActor* Actor)

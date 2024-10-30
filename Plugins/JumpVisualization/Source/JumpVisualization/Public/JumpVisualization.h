@@ -4,88 +4,70 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
-#include <vector>
+#include "PlayerJumpData.h"
+#include "TrackedResourceData.h"
 
 class USimulationCharacterMovementComponent;
 class ASimJumpCharacter;
 class AJumpVisActor;
-struct FCapsuleLocation;
 
-struct FResourceData
-{
-	int Amount;
-	FVector Location;
-	FDateTime Time;
-	
-	FResourceData()
-	{
-		Amount = 0;
-		Location = FVector::ZeroVector;
-		Time = FDateTime::MinValue();
-	}
+//struct FPlayerJumpData;
+//struct FTrackedResourceData;
 
-	FResourceData(int NAmount, FVector NLocation, FDateTime NTime)
-	{
-		Amount = NAmount;
-		Location = NLocation;
-		Time = NTime;
-	}
-};
-
-class FJumpVisualizationModule : public IModuleInterface
+class JUMPVISUALIZATION_API FJumpVisualizationModule : public IModuleInterface
 {
 public:
-
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	TArray<TArray<FCapsuleLocation>> GetCapsuleLocations() const { return JumpLocations; }
-	static FString GetOldestFile(bool& bFoundFile);
-	static FString GetNewestFile(bool& bFoundFile);
-	static FString GetNFile(bool& bFoundFile, const int N);
+	static bool GetOldestFile(FString& FileName);
+	static bool GetNFile(int N, FString& FileName);
 	static int GetAmountOfFiles();
 	int GetSessionNumberToShow() const { return SessionNumberToShow; }
-	void SetSessionNumberToShow(int NewSessionNumberToShow) { SessionNumberToShow = NewSessionNumberToShow; UE_LOG(LogTemp, Warning, TEXT("New Session: %i"), SessionNumberToShow)}
-	TMap<int*, TArray<FResourceData>> GetResourceData() const { return ResourceData; }
-	void AddResourceToTrack(int* Variable) { ResourceData.Add(Variable, TArray<FResourceData>()); }
-	void CalculateJumpLocation(const TArray<TArray<FCapsuleLocation>>& SessionJumps, TArray<TArray<FCapsuleLocation>>& Output, const AJumpVisActor* VisActor);
+	bool GetShowAirControlRange() const { return ShowAirControlRange; }
+	TArray<TArray<FPlayerJumpData>> GetCapsuleLocations() const { return AllJumpData; }
+	TMap<int*, TArray<FTrackedResourceData>> GetResourceData() const { return ResourceData; }
+
+	void AddResourceToTrack(int* Variable) { ResourceData.Add(Variable, TArray<FTrackedResourceData>()); }
 	void FindAndModifyJumpLocations(const AJumpVisActor* VisActor);
-	//void ModifyJumpLocations(USimulationCharacterMovementComponent SimChMovComp, TObjectPtr<ASimJumpCharacter> SimCh, );
-	//static FString ReadStringFromFile(FString FilePath, bool& Success, FString& InfoMessage);
-	//FString WriteStringToFile(FString FilePath, FString Text, bool& Success, FString& InfoMessage);
+	void SetSessionNumberToShow(const int NewSessionNumberToShow) { SessionNumberToShow = NewSessionNumberToShow; UE_LOG(LogTemp, Warning, TEXT("New Session: %i"), SessionNumberToShow)}
+
 private:                             
 	void ToggleJumpVisualization();
 	bool IsJumpVisualizationVisible() const;
-	void BindCommands();
+	TArray<FPlayerJumpData> EditSessionJumpData(USimulationCharacterMovementComponent* SimChMovComp,
+	                                            const TArray<FPlayerJumpData>& SessionJumpData, const float& Angle,
+	                                            const FVector& Direction, bool
+	                                            UseDifferentAirControl) const;
+	void CalculateJumpLocation(const TArray<TArray<FPlayerJumpData>>& SessionJumps, TArray<TArray<FPlayerJumpData>>& Output, const AJumpVisActor* VisActor);
 	void RegisterMenuExtensions();
 	void StartRecordingData(bool IsSimulating);
 	void CheckPlayerData();
 	void CollectJumpData(ACharacter* Character);
 	void CollectResourceData();
-	void PrintJumpLocations(bool IsSimulating);
 	void OnEndPIE(bool IsSimulating);
-	//void CheckFilesNumber();
-public:
-	TArray<TArray<FCapsuleLocation>> ModifiedJumpLocations;
-	TArray<TPair<TArray<FCapsuleLocation>, TArray<FCapsuleLocation>>> AirControlJumpRange;
-	bool ShowAirControlRange = false;
-private:
 	
+public:
+	TArray<TArray<FPlayerJumpData>> ModifiedJumpLocations;
+	TArray<TPair<TArray<FPlayerJumpData>, TArray<FPlayerJumpData>>> AirControlJumpRange;
+	
+private:
 	FTimerHandle CollectJumpDataTimer;
 	FTimerHandle CollectResourceDataTimer;
 	FDelegateHandle RecordJumpsDelegate;
 	FDelegateHandle CheckJumpDelegate;
 	FDelegateHandle DrawDebugJumpsDelegate;
 	FDelegateHandle CheckResourceDelegate;
+	
+	AJumpVisActor* JumpVisActor = nullptr;
+	TObjectPtr<ASimJumpCharacter> SimCh = nullptr;
 	bool IsJumpVisible = false;
+	bool ShowAirControlRange = false;
+	int SessionNumberToShow = 1;
+	int MaxJumpsRecorded = 100; 
 	uint32 ViewFlagIndex = -1;
 	FString ViewFlagName = "";
-	TSharedPtr<FUICommandList> CommandList;
-	AJumpVisActor* JumpVisActor = nullptr;
-	uint8 SessionNumberToShow = 1;
-	TArray<TArray<FCapsuleLocation>> JumpLocations;
-	TMap<int*, TArray<FResourceData>> ResourceData;
-	
-	TObjectPtr<ASimJumpCharacter> SimCh = nullptr;
+	TArray<TArray<FPlayerJumpData>> AllJumpData;
+	TMap<int*, TArray<FTrackedResourceData>> ResourceData;
 };

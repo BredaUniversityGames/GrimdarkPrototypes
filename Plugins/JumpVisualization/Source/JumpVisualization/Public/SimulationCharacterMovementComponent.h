@@ -16,15 +16,14 @@ public:
 	// Sets default values for this component's properties
 	USimulationCharacterMovementComponent();
 
-protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
-	
-public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override { UpdatedComponent = NewUpdatedComponent; }
 	void SetAcceleration(const FVector& NewAcceleration) { Acceleration = NewAcceleration; }
-	void SetCharacterOwner(const TObjectPtr<ACharacter> Character) { CharacterOwner = Character; }
-	void SetUpdatedComponent(const TObjectPtr<USceneComponent> SceneComponent) { UpdatedComponent = SceneComponent; }
+	void SetCharacterOwner(ACharacter* Character) { CharacterOwner = Character; };
+
+protected:
+	// Called when the game starts
+	virtual void BeginPlay() override;
 };

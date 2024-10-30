@@ -25,7 +25,8 @@ public class JumpVisualization : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "UnrealEd"
+				"Core", "UnrealEd",
+				"EditorScriptingUtilities"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -44,6 +45,7 @@ public class JumpVisualization : ModuleRules
 				"LevelEditor",
 				"Json",
 				"JsonUtilities",
+				"EditorScriptingUtilities"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

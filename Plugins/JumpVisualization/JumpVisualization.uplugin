@@ -18,7 +18,10 @@
 		{
 			"Name": "JumpVisualization",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"EditorScriptingUtilities"
+			]
 		}
 	]
 }

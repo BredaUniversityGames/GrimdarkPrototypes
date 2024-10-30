@@ -47,7 +47,10 @@ public class DevNotes : ModuleRules
 				"UnrealEd",
 				"ToolMenus",
 				"Projects",
-				"InputCore"
+				"InputCore",
+				"UMG",
+				"Blutility",
+				"EditorScriptingUtilities"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

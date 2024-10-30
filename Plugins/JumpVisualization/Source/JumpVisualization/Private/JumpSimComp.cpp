@@ -14,9 +14,7 @@ UJumpSimComp::UJumpSimComp()
 	bVisibleInReflectionCaptures = false;
 	bVisibleInRayTracing = false;
 	bVisibleInRealTimeSkyCaptures = false;
-	//MarkRenderTransformDirty();
 	MarkRenderInstancesDirty();
-	//bIsEditorOnly = true;
 
 #if WITH_EDITORONLY_DATA
 	SetIsVisualizationComponent(true);
@@ -37,13 +35,13 @@ FDebugRenderSceneProxy* UJumpSimComp::CreateDebugSceneProxy()
 	{
 		FPredictProjectilePathParams PredictParams;
 		FPredictProjectilePathResult PredictResult;
-		if(Owner->TrackCharacterValues)
+		if(Owner->GetTrackCharacterValues())
 			Owner->TakeValuesFromClass();
-		PredictParams.OverrideGravityZ = Owner->GravityScale * World->GetGravityZ();
-		PredictParams.LaunchVelocity = Owner->GetActorForwardVector() * Owner->Speed;
-		PredictParams.LaunchVelocity.Z += Owner->JumpZVelocity;
+		PredictParams.OverrideGravityZ = Owner->GetGravityScale() * World->GetGravityZ();
+		PredictParams.LaunchVelocity = Owner->GetActorForwardVector() * Owner->GetSpeed();
+		PredictParams.LaunchVelocity.Z += Owner->GetJumpZVelocity();
 		PredictParams.StartLocation = Owner->GetActorLocation();
-		PredictParams.MaxSimTime = Owner->SimTime;
+		PredictParams.MaxSimTime = Owner->GetSimTime();
 		PredictParams.DrawDebugType = EDrawDebugTrace::None;
 		UGameplayStatics::PredictProjectilePath(World, PredictParams, PredictResult);
 

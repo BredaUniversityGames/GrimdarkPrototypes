@@ -2,41 +2,31 @@
 
 #include "JumpVisualization.h"
 
-#include "DebugRenderSceneProxy.h"
 #include "Editor.h"
 #include "EngineUtils.h"
-#include "FCustomEditorViewportCommands.h"
 #include "JumpVisActor.h"
 #include "ToolMenus.h"
 #include "Components/CapsuleComponent.h"
-#include "Debug/DebugDrawService.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Serialization/BufferArchive.h"
-#include "JumpVisActor.h"
 #include "LevelEditor.h"
+#include "PlayerJumpData.h"
 #include "SimJumpCharacter.h"
 #include "SimulationCharacterMovementComponent.h"
 #include "SLevelViewport.h"
-#include "Containers/DirectoryTree.h"
-#include "Framework/MultiBox/SToolBarComboButtonBlock.h"
 
 #define LOCTEXT_NAMESPACE "FJumpVisualizationModule"
 
 void FJumpVisualizationModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-	//FCustomEditorViewportCommands::Register();
-	//BindCommands();
 	
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FJumpVisualizationModule::RegisterMenuExtensions));
-	FEditorDelegates::EndPIE.AddRaw(this, &FJumpVisualizationModule::PrintJumpLocations);
 	RecordJumpsDelegate = FEditorDelegates::PostPIEStarted.AddRaw(this, &FJumpVisualizationModule::StartRecordingData);
 	RecordJumpsDelegate = FEditorDelegates::ShutdownPIE.AddRaw(this, &FJumpVisualizationModule::OnEndPIE);
-	//FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::FindAndModifyJumpLocations);
-	//FEngineShowFlags::RegisterCustomShowFlag()
 
 	ViewFlagName = TEXT("JumpVisualization");
 	ViewFlagIndex = static_cast<uint32>(FEngineShowFlags::FindIndexByName(*ViewFlagName));
@@ -48,7 +38,7 @@ void FJumpVisualizationModule::ShutdownModule()
 	// we call this function before unloading the module.
 }
 
-void FJumpVisualizationModule::CalculateJumpLocation(const TArray<TArray<FCapsuleLocation>>& SessionJumps, TArray<TArray<FCapsuleLocation>>& OutputJumps, const AJumpVisActor* VisActor)
+void FJumpVisualizationModule::CalculateJumpLocation(const TArray<TArray<FPlayerJumpData>>& SessionJumps, TArray<TArray<FPlayerJumpData>>& OutputJumps, const AJumpVisActor* VisActor)
 {
 	OutputJumps.Empty();
 	if(SessionJumps.Num() == 0)
@@ -60,9 +50,6 @@ void FJumpVisualizationModule::CalculateJumpLocation(const TArray<TArray<FCapsul
 	if(!World)
 		return;
 	
-	//TSharedPtr<USimulationCharacterMovementComponent> SimChMovComp = MakeShared<USimulationCharacterMovementComponent>();
-	//SimCh = World->SpawnActor<ASimJumpCharacter>();
-	//TSharedPtr<ASimJumpCharacter> SimCh = MakeShared<ASimJumpCharacter>();
 	for(TActorIterator<ASimJumpCharacter> ActorIt(World); ActorIt; ++ActorIt)
 	{
 		SimCh = *ActorIt;
@@ -80,7 +67,6 @@ void FJumpVisualizationModule::CalculateJumpLocation(const TArray<TArray<FCapsul
 	{
 		SimChMovComp->SetCharacterOwner(SimCh);
 		SimChMovComp->SetUpdatedComponent(SimCh->GetCapsuleComponent());
-		//TArray<FCapsuleLocation> JumpLocations;
 		FVector Velocity2D = SessionJumps[j][0].Velocity;
 		Velocity2D.Z = 0.f;
 		FVector Direction = Velocity2D.GetSafeNormal();
@@ -91,167 +77,69 @@ void FJumpVisualizationModule::CalculateJumpLocation(const TArray<TArray<FCapsul
 		SimChMovComp->AirControlBoostVelocityThreshold = SessionJumps[j][0].AirControlBoostVelocityThreshold;
 		SimChMovComp->MaxSimulationIterations = SessionJumps[j][0].MaxSimulationIterations;
 		SimChMovComp->MaxSimulationTimeStep = SessionJumps[j][0].MaxSimulationTimeStep;
-		SimCh->SetActorLocation(SessionJumps[j][0].Location);
-		SimCh->SetActorRotation(SessionJumps[j][0].Rotation);
 		if(VisActor->UseDifferentAirControl)
 		{
 			SimChMovComp->AirControl = VisActor->AirControl;
 		}
-		//TArray<TArray<FCapsuleLocation>> Output;
-		OutputJumps.Emplace(TArray<FCapsuleLocation>());
+		
 		float Angle = VisActor->AirControlDirection * 90.f;
-		FRotator Rotation(0.f, Angle, 0.f);
-		FVector RotatedDirection = Rotation.RotateVector(Direction);
-		FVector VisActorAcc = RotatedDirection * SessionJumps[j][0].MaxAcceleration;
-		for(int i = 0; i < 720 || i < SessionJumps[j].Num(); i++)
-		{
-			if(SessionJumps[j].Num() > i)
-			{
-				//UE_LOG(LogTemp, Warning, TEXT("Acceleration: %s"), *VisActorAcc.ToString());
-				if(VisActor->UseDifferentAirControl)
-					SimChMovComp->SetAcceleration(VisActorAcc);
-				else
-					SimChMovComp->SetAcceleration(SessionJumps[j][i].Acceleration);
-			}
-			
-			SimChMovComp->PhysFalling(0.016f, 0);
-			FCapsuleLocation Location;
-			Location.TopMiddle = SimChMovComp->GetActorLocation();
-			Location.BottomMiddle = SimChMovComp->GetActorLocation();
-			Location.TopMiddle.Z += SessionJumps[j][0].HalfCapsuleHeight;
-			Location.BottomMiddle.Z -= SessionJumps[j][0].HalfCapsuleHeight;
-			Location.Location = SimChMovComp->GetActorLocation();
-			OutputJumps.Last().Emplace(Location);
-		}
+		OutputJumps.Add(EditSessionJumpData(SimChMovComp, SessionJumps[j], Angle, Direction, VisActor->UseDifferentAirControl));
+		
 		ShowAirControlRange = VisActor->ShowAirControlRange;
-		if(VisActor->ShowAirControlRange)
+		if(ShowAirControlRange)
 		{
-			AirControlJumpRange.Emplace(TPair<TArray<FCapsuleLocation>, TArray<FCapsuleLocation>>(TArray<FCapsuleLocation>(), TArray<FCapsuleLocation>()));
-			SimCh->SetActorLocation(SessionJumps[j][0].Location);
-			SimCh->SetActorRotation(SessionJumps[j][0].Rotation);
+			AirControlJumpRange.Emplace(TPair<TArray<FPlayerJumpData>, TArray<FPlayerJumpData>>(TArray<FPlayerJumpData>(), TArray<FPlayerJumpData>()));
+
 			SimChMovComp->Velocity = Direction * VisActor->Speed;
 			SimChMovComp->Velocity.Z = VisActor->JumpZVelocity;
-			float LeftAngle = -90.f;
-			FRotator LeftRotation(0.f, LeftAngle, 0.f);
-			FVector LeftRotatedDirection = LeftRotation.RotateVector(Direction);
-			FVector LeftVisActorAcc = LeftRotatedDirection * SessionJumps[j][0].MaxAcceleration;
-			for(int i = 0; i < 720 || i < SessionJumps[j].Num(); i++)
-			{
-				if(SessionJumps[j].Num() > i)
-				{
-					SimChMovComp->SetAcceleration(LeftVisActorAcc);
-				}
-			
-				SimChMovComp->PhysFalling(0.016f, 0);
-				FCapsuleLocation Location;
-				Location.TopMiddle = SimChMovComp->GetActorLocation();
-				Location.BottomMiddle = SimChMovComp->GetActorLocation();
-				Location.TopMiddle.Z += SessionJumps[j][0].HalfCapsuleHeight;
-				Location.BottomMiddle.Z -= SessionJumps[j][0].HalfCapsuleHeight;
-				Location.Location = SimChMovComp->GetActorLocation();
-				AirControlJumpRange.Last().Key.Emplace(Location);
-			}
-			
-			//AirControlJumpRange.Emplace(TPair<TArray<FCapsuleLocation>, TArray<FCapsuleLocation>>(TArray<FCapsuleLocation>(), TArray<FCapsuleLocation>()));
-			SimCh->SetActorLocation(SessionJumps[j][0].Location);
-			SimCh->SetActorRotation(SessionJumps[j][0].Rotation);
+			AirControlJumpRange.Last().Key = EditSessionJumpData(SimChMovComp, SessionJumps[j], -90.f, Direction, true);
+
 			SimChMovComp->Velocity = Direction * VisActor->Speed;
 			SimChMovComp->Velocity.Z = VisActor->JumpZVelocity;
-			float RightAngle = 90.f;
-			FRotator RightRotation(0.f, RightAngle, 0.f);
-			FVector RightRotatedDirection = RightRotation.RotateVector(Direction);
-			FVector RightVisActorAcc = RightRotatedDirection * SessionJumps[j][0].MaxAcceleration;
-			for(int i = 0; i < 720 || i < SessionJumps[j].Num(); i++)
-			{
-				if(SessionJumps[j].Num() > i)
-				{
-					SimChMovComp->SetAcceleration(RightVisActorAcc);
-				}
-			
-				SimChMovComp->PhysFalling(0.016f, 0);
-				FCapsuleLocation Location;
-				Location.TopMiddle = SimChMovComp->GetActorLocation();
-				Location.BottomMiddle = SimChMovComp->GetActorLocation();
-				Location.TopMiddle.Z += SessionJumps[j][0].HalfCapsuleHeight;
-				Location.BottomMiddle.Z -= SessionJumps[j][0].HalfCapsuleHeight;
-				Location.Location = SimChMovComp->GetActorLocation();
-				AirControlJumpRange.Last().Value.Emplace(Location);
-			}
+			AirControlJumpRange.Last().Value = EditSessionJumpData(SimChMovComp, SessionJumps[j], 90.f, Direction, true);
 		}
 	}
 }
 
 void FJumpVisualizationModule::FindAndModifyJumpLocations(const AJumpVisActor* VisActor)
 {
+	FString FileName = "";
+	const bool bFoundFile = GetNFile(GetSessionNumberToShow(), FileName);
+	const FString FilePath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), FileName);
+
+	TArray<TArray<FPlayerJumpData>> CurrentJumpLocations;
 	TArray<uint8> BinaryData;
-	bool bFoundFile = false;
-	//FJumpVisualizationModule& JumpVisualizationModule = FModuleManager::GetModuleChecked<FJumpVisualizationModule>("JumpVisualization");
-	TArray<TArray<FCapsuleLocation>> CurrentJumpLocations;
-	FString FilePath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), GetNFile(bFoundFile, GetSessionNumberToShow()));
 	if(FFileHelper::LoadFileToArray(BinaryData, *FilePath) && bFoundFile)
 	{
 		FMemoryReader Archive(BinaryData, true);
 		Archive.Seek(0);
-
 		Archive << CurrentJumpLocations;
 	}
-	
-	//for(TActorIterator<AJumpVisActor> ActorIt(GEditor->PlayWorld); ActorIt; ++ActorIt)
-	//{
-	//	JumpVisActor = *ActorIt;
-	//}
-//
-	//if(!JumpVisActor)
-	//{
-	//	UE_LOG(LogTemp, Error, TEXT("Could not find jump visualization actor in world. Make sure there is one!"));
-	//	return;
-	//}
+
 	ModifiedJumpLocations.Empty();
 	if(VisActor->UseSetValues)
 		CalculateJumpLocation(CurrentJumpLocations, ModifiedJumpLocations, VisActor);
-	else ModifiedJumpLocations = CurrentJumpLocations;
+	else
+		ModifiedJumpLocations = CurrentJumpLocations;
 }
 
 void FJumpVisualizationModule::ToggleJumpVisualization()
 {
 	IsJumpVisible = !IsJumpVisible;
-	if(IsJumpVisible)
+	const FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	const TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
 	{
-		PrintJumpLocations(false);
-		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-		TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
-		if (LevelEditor.IsValid())
+		const TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
 		{
-			TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
-			for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+			if (ViewportWindow.IsValid())
 			{
-				if (ViewportWindow.IsValid())
-				{
-					FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
-					Viewport.EngineShowFlags.SetSingleFlag(ViewFlagIndex, true);
-				}
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				Viewport.EngineShowFlags.SetSingleFlag(ViewFlagIndex, IsJumpVisible);
 			}
 		}
 	}
-	else
-	{
-		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-		TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
-		if (LevelEditor.IsValid())
-		{
-			TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
-			for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
-			{
-				if (ViewportWindow.IsValid())
-				{
-					FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
-					Viewport.EngineShowFlags.SetSingleFlag(ViewFlagIndex, false);
-				}
-			}
-		}
-		//FEditorDelegates::PostPIEStarted.Remove(RecordJumpsDelegate);
-	}
-	//PawnRef->
 }
 
 bool FJumpVisualizationModule::IsJumpVisualizationVisible() const
@@ -259,38 +147,62 @@ bool FJumpVisualizationModule::IsJumpVisualizationVisible() const
 	return IsJumpVisible;
 }
 
-void FJumpVisualizationModule::BindCommands()
+TArray<FPlayerJumpData> FJumpVisualizationModule::EditSessionJumpData(
+	USimulationCharacterMovementComponent* SimChMovComp,
+	const TArray<FPlayerJumpData>& SessionJumpData, const float& Angle, const FVector& Direction,
+	const bool UseDifferentAirControl) const
 {
-	const FCustomEditorViewportCommands& Commands = FCustomEditorViewportCommands::Get();
-	CommandList = MakeShared<FUICommandList>();
-	CommandList->MapAction(
-	  	Commands.JumpVisualization,
-	 	FExecuteAction::CreateRaw(this, &FJumpVisualizationModule::ToggleJumpVisualization),
-	  	FCanExecuteAction(),
-	  	FIsActionChecked::CreateRaw(this, &FJumpVisualizationModule::IsJumpVisualizationVisible));
+	TArray<FPlayerJumpData> EditedJumpData;
+	
+	SimCh->SetActorLocation(SessionJumpData[0].Location);
+	SimCh->SetActorRotation(SessionJumpData[0].Rotation);
+	const FRotator Rotation(0.f, Angle, 0.f);
+	const FVector RotatedDirection = Rotation.RotateVector(Direction);
+	const FVector VisActorAcc = RotatedDirection * SessionJumpData[0].MaxAcceleration;
+	for(int i = 0; i < 720 || i < SessionJumpData.Num(); i++)
+	{
+		if(SessionJumpData.Num() > i)
+		{
+			if(UseDifferentAirControl)
+				SimChMovComp->SetAcceleration(VisActorAcc);
+			else
+				SimChMovComp->SetAcceleration(SessionJumpData[i].Acceleration);
+		}
+			
+		SimChMovComp->PhysFalling(0.016f, 0);
+		FPlayerJumpData PlayerJumpData;
+		PlayerJumpData.TopMiddle = SimChMovComp->GetActorLocation();
+		PlayerJumpData.BottomMiddle = SimChMovComp->GetActorLocation();
+		PlayerJumpData.TopMiddle.Z += SessionJumpData[0].HalfCapsuleHeight;
+		PlayerJumpData.BottomMiddle.Z -= SessionJumpData[0].HalfCapsuleHeight;
+		PlayerJumpData.Location = SimChMovComp->GetActorLocation();
+		EditedJumpData.Add(PlayerJumpData);
+	}
+
+	return EditedJumpData;
 }
 
 void FJumpVisualizationModule::RegisterMenuExtensions()
 {
-	//BindCommands();
 	FToolMenuOwnerScoped OwnerScoped(this);
 	UToolMenu* ShowMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelViewportToolbar.Show");
 	FToolMenuSection& ShowMenuSection = ShowMenu->FindOrAddSection("CustomLevelViewportEditorShow");
 	ShowMenuSection.AddSeparator(FName("Custom Level Editor Tools"));
-	FUIAction Action (FExecuteAction::CreateRaw(this, &FJumpVisualizationModule::ToggleJumpVisualization),
-		  FCanExecuteAction(),
-		  FIsActionChecked::CreateRaw(this, &FJumpVisualizationModule::IsJumpVisualizationVisible));
-	ShowMenuSection.AddMenuEntry(FName("JumpVisualizer"), FText::FromString("Jump Visualizer"), FText::FromString("Visualize Jumps From Previous Play"), FSlateIcon(), Action, EUserInterfaceActionType::ToggleButton);
+	const FUIAction Action (FExecuteAction::CreateRaw(this, &FJumpVisualizationModule::ToggleJumpVisualization),
+	                        FCanExecuteAction(),
+	                        FIsActionChecked::CreateRaw(this, &FJumpVisualizationModule::IsJumpVisualizationVisible));
+	ShowMenuSection.AddMenuEntry(FName("JumpVisualizer"),
+		FText::FromString("Jump Visualizer"),
+		FText::FromString("Visualize Jumps From Previous Play"),
+		FSlateIcon(),
+		Action,
+		EUserInterfaceActionType::ToggleButton);
 	TSharedPtr<SComboButton> ComboButton = SNew(SComboButton).AccessibleText(LOCTEXT("Combo", ""));
-	
-	//ShowMenuSection.AddEntry(FToolMenuEntry::InitWidget("ComboButton", ComboButton.ToSharedRef(), FText::GetEmpty()));
-	//ShowMenuSection.AddSubMenu()
-	//ShowMenuSection.AddMenuEntry(FName("JumpVisualizer"), FText::FromString("Jump Visualizer"), FText::FromString("Visualize Jumps From Previous Play"), FSlateIcon(), Action, EUserInterfaceActionType::);
 }
 
 void FJumpVisualizationModule::StartRecordingData(bool IsSimulating)
 {
-	JumpLocations.Empty();
+	AllJumpData.Empty();
 	for(auto& Pair : ResourceData)
 		Pair.Value.Empty();
 	for(TActorIterator<AJumpVisActor> ActorIt(GEditor->PlayWorld); ActorIt; ++ActorIt)
@@ -305,7 +217,6 @@ void FJumpVisualizationModule::StartRecordingData(bool IsSimulating)
 	}
 
 	CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CheckPlayerData);
-	//CheckResourceDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CollectResourceData);
 	FTimerDelegate TimerDelegate = FTimerDelegate::CreateRaw(this, &FJumpVisualizationModule::CollectResourceData);
 	GEditor->GetTimerManager()->SetTimer(CollectResourceDataTimer, TimerDelegate, 0.016f, true, 0.f);
 
@@ -313,18 +224,18 @@ void FJumpVisualizationModule::StartRecordingData(bool IsSimulating)
 
 void FJumpVisualizationModule::CheckPlayerData()
 {
-	APlayerController* PlayerControllerRef = UGameplayStatics::GetPlayerController(GEditor->PlayWorld, 0);
+	const APlayerController* PlayerControllerRef = UGameplayStatics::GetPlayerController(GEditor->PlayWorld, 0);
 	if(!PlayerControllerRef)
 		return;
-	APawn* PawnRef = PlayerControllerRef->GetPawn();
-	ACharacter* CharacterRef = Cast<ACharacter>(PawnRef);
+	
+	ACharacter* CharacterRef = Cast<ACharacter>(PlayerControllerRef->GetPawn());
 	if(!CharacterRef)
 		return;
 	
 	if(CharacterRef->bWasJumping)
 	{
 		FCoreDelegates::OnEndFrame.Remove(CheckJumpDelegate);
-		JumpLocations.Add(TArray<FCapsuleLocation>());
+		AllJumpData.Add(TArray<FPlayerJumpData>());
 		FTimerDelegate TimerDelegate = FTimerDelegate::CreateRaw(this, &FJumpVisualizationModule::CollectJumpData, CharacterRef);
 		GEditor->GetTimerManager()->SetTimer(CollectJumpDataTimer, TimerDelegate, 0.016f, true, 0.f);
 	}
@@ -334,37 +245,37 @@ void FJumpVisualizationModule::CollectJumpData(ACharacter* Character)
 {
 	if(!Character)
 		return;
-	UCharacterMovementComponent* MovementRef = Character->GetCharacterMovement();
-	UCapsuleComponent* CapsuleRef = Character->GetCapsuleComponent();
+
+	const UCharacterMovementComponent* MovementRef = Character->GetCharacterMovement();
+	const UCapsuleComponent* CapsuleRef = Character->GetCapsuleComponent();
 	if(!MovementRef || !CapsuleRef)
 		return;
-	FCapsuleLocation Location;
+	
+	FPlayerJumpData JumpData;
 	float Radius = 0.f;
 	float HalfHeight = 0.f;
 	CapsuleRef->GetScaledCapsuleSize(Radius, HalfHeight);
-	Location.Acceleration = MovementRef->GetCurrentAcceleration();
-	Location.MaxAcceleration = MovementRef->GetMaxAcceleration();
-	Location.MaxSimulationIterations = MovementRef->MaxSimulationIterations;
-	Location.MaxSimulationTimeStep = MovementRef->MaxSimulationTimeStep;
-	Location.AirControl = MovementRef->AirControl;
-	Location.AirControlBoostMultiplier = MovementRef->AirControlBoostMultiplier;
-	Location.AirControlBoostVelocityThreshold = MovementRef->AirControlBoostVelocityThreshold;
-	Location.JumpZVelocity = MovementRef->JumpZVelocity;
-	Location.Velocity = MovementRef->Velocity;
-	Location.GravityScale = MovementRef->GravityScale;
-	Location.Location = CapsuleRef->GetComponentLocation();
-	Location.HalfCapsuleHeight = HalfHeight;
-	Location.TopMiddle = Location.BottomMiddle = CapsuleRef->GetComponentLocation();
-	Location.TopMiddle.Z += HalfHeight;
-	Location.BottomMiddle.Z -= HalfHeight;
-	Location.Time = FDateTime::Now();
-	Location.Velocity = Character->GetVelocity();
-	Location.Speed = Character->GetVelocity().Size();
-	Location.GravityScale = MovementRef->GravityScale;
-	Location.JumpZVelocity = MovementRef->JumpZVelocity;
 	
-	JumpLocations.Last().Add(Location);
-	if(MovementRef && !MovementRef->IsFalling())
+	JumpData.Acceleration = MovementRef->GetCurrentAcceleration();
+	JumpData.MaxAcceleration = MovementRef->GetMaxAcceleration();
+	JumpData.MaxSimulationIterations = MovementRef->MaxSimulationIterations;
+	JumpData.MaxSimulationTimeStep = MovementRef->MaxSimulationTimeStep;
+	JumpData.AirControl = MovementRef->AirControl;
+	JumpData.AirControlBoostMultiplier = MovementRef->AirControlBoostMultiplier;
+	JumpData.AirControlBoostVelocityThreshold = MovementRef->AirControlBoostVelocityThreshold;
+	JumpData.Location = CapsuleRef->GetComponentLocation();
+	JumpData.HalfCapsuleHeight = HalfHeight;
+	JumpData.TopMiddle = JumpData.BottomMiddle = CapsuleRef->GetComponentLocation();
+	JumpData.TopMiddle.Z += HalfHeight;
+	JumpData.BottomMiddle.Z -= HalfHeight;
+	JumpData.Time = FDateTime::Now();
+	JumpData.Velocity = Character->GetVelocity();
+	JumpData.Speed = Character->GetVelocity().Size();
+	JumpData.GravityScale = MovementRef->GravityScale;
+	JumpData.JumpZVelocity = MovementRef->JumpZVelocity;
+	
+	AllJumpData.Last().Add(JumpData);
+	if(!MovementRef->IsFalling())
 	{
 		GEditor->GetTimerManager()->ClearTimer(CollectJumpDataTimer);
 		CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CheckPlayerData);
@@ -376,51 +287,45 @@ void FJumpVisualizationModule::CollectResourceData()
 	APlayerController* PlayerControllerRef = UGameplayStatics::GetPlayerController(GEditor->PlayWorld, 0);
 	if(!PlayerControllerRef)
 		return;
-	APawn* PawnRef = PlayerControllerRef->GetPawn();
-	ACharacter* CharacterRef = Cast<ACharacter>(PawnRef);
+	
+	ACharacter* CharacterRef = Cast<ACharacter>(PlayerControllerRef->GetPawn());
 	if(!CharacterRef)
 		return;
-	UCharacterMovementComponent* MovementRef = CharacterRef->GetCharacterMovement();
-	UCapsuleComponent* CapsuleRef = CharacterRef->GetCapsuleComponent();
+
+	const UCharacterMovementComponent* MovementRef = CharacterRef->GetCharacterMovement();
+	const UCapsuleComponent* CapsuleRef = CharacterRef->GetCapsuleComponent();
 	if(!MovementRef || !CapsuleRef)
 		return;
+	
 	float Radius = 0.f;
 	float HalfHeight = 0.f;
 	CapsuleRef->GetScaledCapsuleSize(Radius, HalfHeight);
-	FVector Location =  CapsuleRef->GetComponentLocation();
-	FDateTime Time = FDateTime::Now();
+	
+	const FVector Location =  CapsuleRef->GetComponentLocation();
+	const FDateTime Time = FDateTime::Now();
 	for(auto& Resource : ResourceData)
 	{
-		Resource.Value.Emplace(FResourceData(*Resource.Key, Location, Time));
-	}
-}
-
-void FJumpVisualizationModule::PrintJumpLocations(bool IsSimulating)
-{
-	FCoreDelegates::OnEndFrame.Remove(CheckJumpDelegate);
-	GEditor->GetTimerManager()->ClearTimer(CollectJumpDataTimer);
-	if(!JumpVisActor)
-	{
-		return;
+		Resource.Value.Emplace(*Resource.Key, Location, Time);
 	}
 }
 
 void FJumpVisualizationModule::OnEndPIE(bool IsSimulating)
 {
 	FBufferArchive Archive;
-	Archive << JumpLocations;
-	FDateTime CurrentTime = FDateTime::Now();
+	Archive << AllJumpData;
+	
+	const FDateTime CurrentTime = FDateTime::UtcNow();
 	FString NewFileName = TEXT("JumpDataFile");
 	NewFileName.Append(CurrentTime.ToString());
 	NewFileName.Append(TEXT(".dat"));
-	FString FullPath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), NewFileName);
+	const FString FullPath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/"), NewFileName);
+
 	TArray<FString> FileNames;
 	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
-	while(FileNames.Num() > 99)
+	while(FileNames.Num() > MaxJumpsRecorded - 1)
 	{
-		bool bFoundFile = false;
-		FString OldestFile = GetOldestFile(bFoundFile);
-		if(!bFoundFile)
+		FString OldestFile;
+		if(!GetOldestFile(OldestFile))
 		{
 			break;
 		}
@@ -434,91 +339,67 @@ void FJumpVisualizationModule::OnEndPIE(bool IsSimulating)
 	}
 }
 
-FString FJumpVisualizationModule::GetOldestFile(bool& bFoundFile)
+bool FJumpVisualizationModule::GetOldestFile(FString& FileName)
 {
+	FileName = "";
 	TArray<FString> FileNames;
+	TMap<FDateTime, FString> FileMap;
 	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
-	FString OldestFile = TEXT("");
-	FDateTime OldestFileTimestamp = FDateTime::MaxValue();
+	if(!FileNames.Num())
+		return false;
+
 	for(int i = 0; i < FileNames.Num(); i++)
 	{
-		//18
-		FString FileName = FileNames[i];
-		FileName.RemoveFromEnd(".dat");
-		FString TimeStampString = FileName.RightChop(18);
+		FString CurrentFileName = FileNames[i];
+		CurrentFileName.RemoveFromEnd(".dat");
+		FString TimeStampString = CurrentFileName.RightChop(18);
 
 		FDateTime Timestamp;
 		FDateTime::Parse(TimeStampString, Timestamp);
 
-		if(Timestamp < OldestFileTimestamp)
-		{
-			OldestFileTimestamp = Timestamp;
-			OldestFile = FileNames[i];
-			bFoundFile = true;
-		}
+		FileMap.Add(Timestamp, FileNames[i]);
 	}
-	return OldestFile;
+	TArray<FDateTime> Keys;
+	FileMap.GenerateKeyArray(Keys);
+	
+	FileName = FileMap[Keys[0]];
+	return true;
 }
 
-FString FJumpVisualizationModule::GetNewestFile(bool& bFoundFile)
+bool FJumpVisualizationModule::GetNFile(const int N, FString& FileName)
 {
-	TArray<FString> FileNames;
-	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
-	FString NewestFile = TEXT("");
-	FDateTime NewestFileTimestamp = FDateTime::MinValue();
-	for(int i = 0; i < FileNames.Num(); i++)
-	{
-		//18
-		FString FileName = FileNames[i];
-		FileName.RemoveFromEnd(".dat");
-		FileName.RightInline(19);
-		
-		FDateTime Timestamp;
-		FDateTime::Parse(FileName, Timestamp);
-
-		if(Timestamp > NewestFileTimestamp)
-		{
-			NewestFileTimestamp = Timestamp;
-			NewestFile = FileNames[i];
-			bFoundFile = true;
-		}
-	}
-	return NewestFile;
-}
-
-FString FJumpVisualizationModule::GetNFile(bool& bFoundFile, int N)
-{
+	FileName = "";
 	TArray<FString> FileNames;
 	TMap<FDateTime, FString> FileMap;
 	IFileManager::Get().FindFiles(FileNames, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("JumpData/")), TEXT(".dat"));
-	FString NewestFile = TEXT("");
+	if(FileNames.Num() - N < 0)
+		return false;
+	
 	for(int i = 0; i < FileNames.Num(); i++)
 	{
-		//18
-		FString FileName = FileNames[i];
-		FileName.RemoveFromEnd(".dat");
-		FileName.RightInline(19);
+		FString CurrentFileName = FileNames[i];
+		CurrentFileName.RemoveFromEnd(".dat");
+		FString TimeStampString = CurrentFileName.RightChop(18);
 		
 		FDateTime Timestamp;
-		FDateTime::Parse(FileName, Timestamp);
+		FDateTime::Parse(TimeStampString, Timestamp);
 
 		FileMap.Add(Timestamp, FileNames[i]);
 	}
 	
 	TArray<FDateTime> Keys;
 	FileMap.GenerateKeyArray(Keys);
-	N = Keys.Num() - N;
+	const int FileIndex = Keys.Num() - N;
 	for(int i = Keys.Num() - 1; i >= 0; i--)
 	{
-		if(i == N)
+		if(i == FileIndex)
 		{
-			bFoundFile = true;
-        	return FileMap[Keys[i]];
+        	FileName = FileMap[Keys[i]];
+			return true;
 		}
 	}
 	
-	bFoundFile = false;
-	return "";
+	return false;
 }
 
 int FJumpVisualizationModule::GetAmountOfFiles()

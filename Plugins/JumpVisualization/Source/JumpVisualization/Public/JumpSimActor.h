@@ -17,9 +17,25 @@ public:
 	// Sets default values for this actor's properties
 	AJumpSimActor();
 	
-public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+	
+	void TakeValuesFromClass();
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	bool GetTrackCharacterValues() const { return TrackCharacterValues; }
+	float GetGravityScale() const { return GravityScale; }
+	float GetSpeed() const { return Speed; }
+	float GetJumpZVelocity() const { return JumpZVelocity; }
+	float GetSimTime() const { return SimTime; }
+	
+protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	
+public:
+
+protected:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<ACharacter> CharacterClass;
 	UPROPERTY(EditAnywhere)
@@ -28,25 +44,9 @@ public:
 	float GravityScale = 1.f;
 	UPROPERTY(EditAnywhere)
 	float Speed = 500.f;
-	//UPROPERTY(EditAnywhere)
-	//float Mass = 100.f;
 	UPROPERTY(EditAnywhere)
 	float JumpZVelocity = 700.f;
-	//UPROPERTY(EditAnywhere)
-	//float BrakingDeceleration = 0.f;
-	//UPROPERTY(EditAnywhere)
 	
 	float SimTime = 20.f;
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-	void TakeValuesFromClass();
-protected:
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
-protected:
 	UJumpSimComp* JumpSimComp;
-	
 };

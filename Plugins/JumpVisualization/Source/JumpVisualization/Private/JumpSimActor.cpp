@@ -34,7 +34,7 @@ void AJumpSimActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	if(PropertyName == GET_MEMBER_NAME_CHECKED(AJumpSimActor, CharacterClass))
 	{
 		TakeValuesFromClass();
