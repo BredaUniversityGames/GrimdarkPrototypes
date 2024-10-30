@@ -44,14 +44,12 @@ void FBugReportButtonStyle::ReloadTextures()
 	}
 }
 
-const FVector2D Icon16x16(16.f, 16.f);
-const FVector2D Icon20x20(20.f, 20.f);
-
 TSharedRef<FSlateStyleSet> FBugReportButtonStyle::Create()
 {
 	TSharedRef< FSlateStyleSet > Style = MakeShareable(new FSlateStyleSet("BugReportButtonStyle"));
 	Style->SetContentRoot(IPluginManager::Get().FindPlugin("DevNotes")->GetBaseDir() / TEXT("Resources"));
-
+	//const FVector2D Icon16x16{16.f, 16.f};
+	const FVector2D Icon20x20{20.f, 20.f};
 	Style->Set("BugReport.BugReportAction", new IMAGE_BRUSH_SVG(TEXT("PlaceholderButtonIcon"), Icon20x20));
 	return Style;
 }

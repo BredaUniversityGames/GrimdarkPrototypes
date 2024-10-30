@@ -18,9 +18,11 @@ public:
 	static const ISlateStyle& Get();
 	static FName GetStyleSetName();
 
-private:
+protected:
 	static TSharedRef<FSlateStyleSet> Create();
 
-private:
+public:
+
+protected:
 	static TSharedPtr<FSlateStyleSet> StyleInstance;
 };

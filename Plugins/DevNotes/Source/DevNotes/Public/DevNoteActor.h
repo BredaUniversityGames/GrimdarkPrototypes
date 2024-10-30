@@ -18,13 +18,9 @@ public:
 	// Sets default values for this actor's properties
 	ADevNoteActor();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
-	UStaticMeshComponent* NoteMesh;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
-	//UTextRenderComponent* NoteText;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
-	UWidgetComponent* NoteWidget;
-
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+	
 	void CheckClickedActor(const TArray<UObject*>& NewSelection, bool bForceRefresh);
 protected:
 	// Called when the game starts or when spawned
@@ -32,13 +28,18 @@ protected:
 	void OpenTextEditWidget();
 	void FitTextVertically(FString& Text);
 	void FitTextHorizontally(FString& Text);
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
+	UStaticMeshComponent* NoteMesh;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
+	//UTextRenderComponent* NoteText;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
+	UWidgetComponent* NoteWidget;
 
 protected:
 	FDateTime TimeLastClick = FDateTime::MinValue();
 	bool IsEditOpen = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
 	FVector DefaultLocation = FVector::ZeroVector;
 };

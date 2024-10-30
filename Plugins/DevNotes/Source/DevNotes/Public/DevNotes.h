@@ -6,6 +6,8 @@
 #include "Interfaces/IHttpRequest.h"
 #include "Modules/ModuleManager.h"
 
+class UJiraBugList;
+
 class FDevNotesModule : public IModuleInterface
 {
 public:
@@ -17,12 +19,16 @@ public:
 	void BugReportButtonClicked();
 
 	bool CreateJiraIssue(const FString& Name, const FString& Description, const FString& Priority);
-	bool GetAllJiraBugs();
-	void OnGetJiraBugs(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
-private:
+	void RequestJiraBugs(UJiraBugList* BugListWidget);
+	
+protected:
 	void RegisterMenus();
+	bool GetAllJiraBugs(UJiraBugList* BugListWidget);
+	void OnGetJiraBugs(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful, UJiraBugList* BugListWidget);
 	void CheckClickedActor(AActor* Actor);
 
-private:
+public:
+
+protected:
 	TSharedPtr<FUICommandList> BugReportCommands;
 };

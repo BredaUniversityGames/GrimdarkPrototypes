@@ -18,7 +18,9 @@ public:
 		
 	}
 	virtual void RegisterCommands() override;
-
+	
+protected:
+	
 public:
 	TSharedPtr<FUICommandInfo> BugReportAction;
 };
