@@ -64,6 +64,7 @@ private:
 	TObjectPtr<ASimJumpCharacter> SimCh = nullptr;
 	bool IsJumpVisible = false;
 	bool ShowAirControlRange = false;
+	bool IsRecordingJumpData = false;
 	int SessionNumberToShow = 1;
 	int MaxJumpsRecorded = 100; 
 	uint32 ViewFlagIndex = -1;

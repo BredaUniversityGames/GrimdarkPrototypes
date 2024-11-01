@@ -147,10 +147,11 @@ bool FJumpVisualizationModule::IsJumpVisualizationVisible() const
 	return IsJumpVisible;
 }
 
-TArray<FPlayerJumpData> FJumpVisualizationModule::EditSessionJumpData(
-	USimulationCharacterMovementComponent* SimChMovComp,
-	const TArray<FPlayerJumpData>& SessionJumpData, const float& Angle, const FVector& Direction,
-	const bool UseDifferentAirControl) const
+TArray<FPlayerJumpData> FJumpVisualizationModule::EditSessionJumpData( USimulationCharacterMovementComponent* SimChMovComp,
+																		const TArray<FPlayerJumpData>& SessionJumpData,
+																		const float& Angle,
+																		const FVector& Direction,
+																		const bool UseDifferentAirControl) const
 {
 	TArray<FPlayerJumpData> EditedJumpData;
 	
@@ -202,6 +203,7 @@ void FJumpVisualizationModule::RegisterMenuExtensions()
 
 void FJumpVisualizationModule::StartRecordingData(bool IsSimulating)
 {
+	IsRecordingJumpData = false;
 	AllJumpData.Empty();
 	for(auto& Pair : ResourceData)
 		Pair.Value.Empty();
@@ -232,10 +234,12 @@ void FJumpVisualizationModule::CheckPlayerData()
 	if(!CharacterRef)
 		return;
 	
-	if(CharacterRef->bWasJumping)
+	if(CharacterRef->bWasJumping && !IsRecordingJumpData)
 	{
+		IsRecordingJumpData = true;
 		FCoreDelegates::OnEndFrame.Remove(CheckJumpDelegate);
 		AllJumpData.Add(TArray<FPlayerJumpData>());
+		UE_LOG(LogTemp, Warning, TEXT("NEW JUMP DATA"));
 		FTimerDelegate TimerDelegate = FTimerDelegate::CreateRaw(this, &FJumpVisualizationModule::CollectJumpData, CharacterRef);
 		GEditor->GetTimerManager()->SetTimer(CollectJumpDataTimer, TimerDelegate, 0.016f, true, 0.f);
 	}
@@ -277,6 +281,7 @@ void FJumpVisualizationModule::CollectJumpData(ACharacter* Character)
 	AllJumpData.Last().Add(JumpData);
 	if(!MovementRef->IsFalling())
 	{
+		IsRecordingJumpData = false;
 		GEditor->GetTimerManager()->ClearTimer(CollectJumpDataTimer);
 		CheckJumpDelegate = FCoreDelegates::OnEndFrame.AddRaw(this, &FJumpVisualizationModule::CheckPlayerData);
 	}
@@ -311,6 +316,9 @@ void FJumpVisualizationModule::CollectResourceData()
 
 void FJumpVisualizationModule::OnEndPIE(bool IsSimulating)
 {
+	GEditor->GetTimerManager()->ClearTimer(CollectJumpDataTimer);
+	FCoreDelegates::OnEndFrame.Remove(CheckJumpDelegate);
+	
 	FBufferArchive Archive;
 	Archive << AllJumpData;
 	

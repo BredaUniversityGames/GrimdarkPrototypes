@@ -39,7 +39,8 @@ public:
 protected:
 	FDateTime TimeLastClick = FDateTime::MinValue();
 	bool IsEditOpen = false;
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NoteTextWidget")
+	FText NoteText;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
 	FVector DefaultLocation = FVector::ZeroVector;
 };

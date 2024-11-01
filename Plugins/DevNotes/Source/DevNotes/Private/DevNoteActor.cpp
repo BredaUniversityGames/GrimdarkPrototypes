@@ -82,6 +82,7 @@ void ADevNoteActor::OpenTextEditWidget()
 			{
 				if (CommitType == ETextCommit::OnCleared)
 				{
+					NoteText = NewText;
 					FString NewTextString = NewText.ToString();
 					//NoteText->SetText(NewText);
 					UNoteTextWidget* NoteTextWidget = Cast<UNoteTextWidget>(NoteWidget->GetWidget());

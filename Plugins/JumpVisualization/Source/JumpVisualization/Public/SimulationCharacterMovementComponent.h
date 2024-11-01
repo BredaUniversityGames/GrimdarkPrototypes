@@ -21,7 +21,7 @@ public:
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override { UpdatedComponent = NewUpdatedComponent; }
 	void SetAcceleration(const FVector& NewAcceleration) { Acceleration = NewAcceleration; }
-	void SetCharacterOwner(ACharacter* Character) { CharacterOwner = Character; };
+	void SetCharacterOwner(ACharacter* Character) { CharacterOwner = Character; }
 
 protected:
 	// Called when the game starts

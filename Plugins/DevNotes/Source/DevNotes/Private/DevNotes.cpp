@@ -113,10 +113,10 @@ bool FDevNotesModule::CreateJiraIssue(const FString& Name, const FString& Descri
 	Request->SetURL(TEXT("https://jira.buas.nl/rest/api/2/issue"));
 	Request->SetVerb("POST");
 	Request->SetHeader("Content-Type", "application/json");
-	FString B = FString("Bearer ") + FString("PersonalToken");
-	Request->SetHeader("Authorization", *B);
+	const FString AuthorizationHeader = FString("Bearer ") + FString("PersonalToken");
+	Request->SetHeader("Authorization", *AuthorizationHeader);
 	
-	FString JiraIssuePayload = FString::Printf(TEXT(R"(
+	const FString JiraIssuePayload = FString::Printf(TEXT(R"(
     {
         "fields": {
             "project": { "key": "Y12223BEE" },
@@ -157,9 +157,9 @@ bool FDevNotesModule::GetAllJiraBugs(UJiraBugList* BugListWidget)
 	Request->SetVerb("POST");
 	Request->SetHeader("Content-Type", "application/json");
 	Request->SetHeader("Accept", "application/json");
-	FString B = FString("Bearer ") + FString("PersonalToken");
-	Request->SetHeader("Authorization", *B);
-	FString JiraIssuePayload = FString::Printf(TEXT(R"(
+	const FString AuthorizationHeader = FString("Bearer ") + FString("PersonalToken");
+	Request->SetHeader("Authorization", *AuthorizationHeader);
+	const FString JiraIssuePayload = FString::Printf(TEXT(R"(
     {
 	    "expand": ["names", "schema"],
 	    "fields": ["summary", "description", "status", "assignee", "priority"],
